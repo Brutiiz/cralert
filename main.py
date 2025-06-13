@@ -10,16 +10,19 @@ def send_telegram_message(message):
         return
 
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {"chat_id": CHAT_ID, "text": message}
+    data = {
+        "chat_id": CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+
     try:
         response = requests.post(url, data=data)
-        print("✅ Telegram response:", response.status_code, response.text)
+        print("✅ Telegram response:", response.status_code)
+        print("➡️ Message text:", message)
+        print("📨 Telegram says:", response.text)
     except Exception as e:
         print("❌ Error sending message:", e)
 
-def check_dummy_alert():
-    # Это заглушка — вместо неё вставь реальный анализ монет
-    send_telegram_message("🔔 Test alert from GitHub Actions!")
-
 if __name__ == "__main__":
-    check_dummy_alert()
+    send_telegram_message("🔔 <b>Test alert</b> from GitHub Actions every 10 minutes!")
