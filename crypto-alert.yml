@@ -2,7 +2,7 @@ name: Crypto Alert Bot
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # Каждые 10 минут
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests
+          pip install requests pandas
 
       - name: Run script
         env:
