@@ -60,6 +60,7 @@ def fetch_ohlcv(symbol):
 
 def main():
     matched = []
+    near_matched = []
     symbols = get_top_400_symbols()
     for symbol in symbols:
         df = fetch_ohlcv(symbol)
@@ -67,16 +68,27 @@ def main():
             continue
         latest_price = df["price"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
+
+        diff_percent = (latest_price - lower2) / lower2 * 100
+        print(f"{symbol:<15} цена: {latest_price:.4f} | Lower 2: {lower2:.4f} | Δ: {diff_percent:.2f}%")
+
         if latest_price <= lower2:
             matched.append((symbol, round(latest_price, 4), round(lower2, 4)))
+        elif 0 < diff_percent <= 3:
+            near_matched.append((symbol, round(latest_price, 4), round(lower2, 4), round(diff_percent, 2)))
 
     if matched:
-        message = "📉 Монеты у нижней границы Lower 2:\n\n"
+        message = "📉 Монеты КАСНУЛИСЬ Lower 2:\n\n"
         for m in matched:
             message += f"{m[0]} — {m[1]} (нижняя линия: {m[2]})\n"
         send_message(message)
-    else:
-        print("Нет монет у нижней линии.")
+    if near_matched:
+        message = "📡 Монеты БЛИЗКИ к Lower 2 (менее 3%):\n\n"
+        for n in near_matched:
+            message += f"{n[0]} — {n[1]} (нижняя линия: {n[2]}, отклонение: {n[3]}%)\n"
+        send_message(message)
+    if not matched and not near_matched:
+        print("Нет монет у Lower 2 или рядом с ним.")
 
 if __name__ == "__main__":
     main()
