@@ -1,75 +1,82 @@
-import os
 import requests
 import pandas as pd
+import numpy as np
 from datetime import datetime
+import time
+import os
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-LOWER_MULTIPLIER = 0.1279  # 12.79%
-SMA_PERIOD = 12
-ALERTED_COINS = set()
-
-def send_telegram_message(message):
-    if not TELEGRAM_TOKEN or not CHAT_ID:
-        print("❌ Telegram credentials not set.")
-        return
+def send_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {"chat_id": CHAT_ID, "text": message, "parse_mode": "HTML"}
+    payload = {"chat_id": CHAT_ID, "text": message}
     try:
-        response = requests.post(url, data=data)
-        print("✅ Telegram response:", response.status_code)
-    except Exception as e:
-        print("❌ Error sending message:", e)
+        requests.post(url, json=payload)
+    except:
+        pass
+
+def safe_request(url, params=None, retries=3, delay=5):
+    for i in range(retries):
+        try:
+            r = requests.get(url, params=params, timeout=10)
+            if r.status_code == 200:
+                return r.json()
+        except Exception as e:
+            print(f"[Retry {i+1}] Error: {e}")
+            time.sleep(delay)
+    return None
 
 def get_top_400_symbols():
-    url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 250, "page": 1}
-    response = requests.get(url, params=params)
-    coins = response.json()
-    params["page"] = 2
-    response2 = requests.get(url, params=params)
-    coins += response2.json()
-    return [coin["id"] for coin in coins]
+    symbols = []
+    for page in range(1, 3):  # 250 + 150 = 400
+        url = "https://api.coingecko.com/api/v3/coins/markets"
+        params = {
+            "vs_currency": "usd",
+            "order": "market_cap_desc",
+            "per_page": 250,
+            "page": page
+        }
+        data = safe_request(url, params)
+        if not data:
+            continue
+        symbols.extend([d['id'] for d in data])
+    return symbols
 
-def get_ohlc_data(coin_id):
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-    params = {"vs_currency": "usd", "days": SMA_PERIOD + 5, "interval": "daily"}
-    response = requests.get(url, params=params)
-    data = response.json()
-    prices = data.get("prices", [])
-    if len(prices) < SMA_PERIOD:
+def fetch_ohlcv(symbol):
+    url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
+    params = {"vs_currency": "usd", "days": "90", "interval": "daily"}
+    data = safe_request(url, params)
+    if not data or 'prices' not in data:
         return None
-    df = pd.DataFrame(prices, columns=["timestamp", "price"])
+    df = pd.DataFrame(data["prices"], columns=["timestamp", "price"])
     df["price"] = df["price"].astype(float)
-    df["sma"] = df["price"].rolling(window=SMA_PERIOD).mean()
-    df["lower_2"] = df["sma"] * (1 - 2 * LOWER_MULTIPLIER)
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+    df.set_index("timestamp", inplace=True)
+    df["sma12"] = df["price"].rolling(12).mean()
+    df["lower1"] = df["sma12"] * (1 - 0.1279)
+    df["lower2"] = df["sma12"] * (1 - 2 * 0.1279)
     return df
 
-def check_lower_touch(coin_id):
-    df = get_ohlc_data(coin_id)
-    if df is None or df.empty:
-        return
-    latest = df.iloc[-1]
-    price = latest["price"]
-    lower_2 = latest["lower_2"]
-    if price <= lower_2 and coin_id not in ALERTED_COINS:
-        ALERTED_COINS.add(coin_id)
-        send_telegram_message(
-            f"📉 <b>{coin_id.upper()}</b> на <b>1D</b> коснулась нижней линии <b>Lower 2</b>\n"
-            f"Цена: <code>{price:.5f}</code>\n"
-            f"Lower 2: <code>{lower_2:.5f}</code>\n"
-            f"Дата: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC"
-        )
-
 def main():
-    print("🚀 Запускаю анализ топ-400 монет...")
-    coins = get_top_400_symbols()
-    for coin_id in coins:
-        try:
-            check_lower_touch(coin_id)
-        except Exception as e:
-            print(f"⚠️ Ошибка с {coin_id}: {e}")
+    matched = []
+    symbols = get_top_400_symbols()
+    for symbol in symbols:
+        df = fetch_ohlcv(symbol)
+        if df is None or len(df) < 20:
+            continue
+        latest_price = df["price"].iloc[-1]
+        lower2 = df["lower2"].iloc[-1]
+        if latest_price <= lower2:
+            matched.append((symbol, round(latest_price, 4), round(lower2, 4)))
+
+    if matched:
+        message = "📉 Монеты у нижней границы Lower 2:\n\n"
+        for m in matched:
+            message += f"{m[0]} — {m[1]} (нижняя линия: {m[2]})\n"
+        send_message(message)
+    else:
+        print("Нет монет у нижней линии.")
 
 if __name__ == "__main__":
     main()
