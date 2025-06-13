@@ -1,26 +1,24 @@
-name: Crypto Alert Bot
+name: alert
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
-  workflow_dispatch:
+    - cron: '*/10 * * * *'  # Каждые 10 минут
+  workflow_dispatch:        # Ручной запуск из интерфейса GitHub
 
 jobs:
-  send_alert:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          pip install requests pandas
+        run: pip install requests pandas numpy
 
       - name: Run script
         env:
