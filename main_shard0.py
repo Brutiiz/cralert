@@ -52,9 +52,15 @@ def get_binance_data(symbol, interval='1d', limit=1000):
         'limit': limit  # максимум 1000 записей
     }
 
+    # Добавляем заголовок для обхода возможных блокировок
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+
     print(f"Запрос для {symbol}: {url}, параметры: {params}")  # Логируем запрос
     try:
-        response = requests.get(url, params=params)
+        # Отправляем запрос с заголовками
+        response = requests.get(url, params=params, headers=headers)
         response.raise_for_status()  # Проверка на успешный ответ
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при запросе для {symbol}: {e}")
@@ -73,6 +79,7 @@ def get_binance_data(symbol, interval='1d', limit=1000):
 
     print(f"Получены данные для {symbol}: {len(df)} строк.")
     return df
+
 
 
 
