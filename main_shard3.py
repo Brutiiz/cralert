@@ -45,7 +45,11 @@ def get_symbols_shard(shard_index):
     symbols = []
     total_pages = 4  # Всего 4 страницы, по 100 монет на странице
 
-    for page in range(1, total_pages + 1):
+    # Для каждого шардового индекса будем правильно вычислять, какие страницы запрашиваются
+    start_page = shard_index  # Индекс страницы для каждого шардового скрипта
+    end_page = shard_index + 1  # На следующем шаге будет следующая страница
+
+    for page in range(start_page, total_pages, 4):  # 4 шага для обхода разных страниц
         url = "https://api.coingecko.com/api/v3/coins/markets"
         params = {
             "vs_currency": "usd",
@@ -56,19 +60,13 @@ def get_symbols_shard(shard_index):
         data = safe_request(url, params)
         if not data:
             continue
-
-        # Логирование количества монет на текущей странице
-        print(f"Страница {page}, количество монет: {len(data)}")
-        
         symbols.extend([d['id'] for d in data])
 
-    # Логируем общее количество монет в symbols
-    print(f"Количество монет в symbols: {len(symbols)}")
+    # Логируем, сколько монет загружено
+    print(f"Загружено {len(symbols)} монет на шард {shard_index}")
+    
+    return symbols
 
-    # Для shard0 обрабатываются монеты с 0 по 99, для shard1 — с 100 по 199 и так далее
-    start = shard_index * 100
-    end = (shard_index + 1) * 100
-    return symbols[start:end]
 
 
 def fetch_ohlcv(symbol):
