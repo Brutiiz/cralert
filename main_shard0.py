@@ -10,6 +10,18 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
 
+def safe_request(url, params=None, retries=3, delay=5):
+    for i in range(retries):
+        try:
+            response = requests.get(url, params=params, headers=headers, timeout=10)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"[Retry {i+1}] Error: {e}")
+            time.sleep(delay)
+    return None
+
+
 # Уведомление в Telegram
 def send_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
