@@ -74,14 +74,15 @@ def fetch_ohlcv(symbol):
     params = {"vs_currency": "usd", "days": "30", "interval": "daily"}  # Установим 30 дней
     data = safe_request(url, params)
 
-    # Логируем весь ответ, чтобы понять структуру данных
+    # Логируем ответ
     print(f"Ответ API для {symbol}: {data}")
 
-    if not data:
+    # Проверяем, если данные отсутствуют или вернулся пустой ответ
+    if data is None:
         print(f"Ошибка: Нет данных для монеты {symbol}")
         return None
     
-    # Проверяем, что в данных есть 'prices'
+    # Проверяем наличие ключа 'prices' в ответе
     if 'prices' not in data:
         print(f"Ошибка: Нет данных о ценах для монеты {symbol}. Ответ API: {data}")
         return None
@@ -98,6 +99,7 @@ def fetch_ohlcv(symbol):
     df["sma12"] = df["price"].rolling(12).mean()  # Расчет 12-дневной SMA
     df["lower2"] = df["sma12"] * (1 - 0.2558)  # Ожидаемое снижение на 25.58%
     return df
+
 
 
 
