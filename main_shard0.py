@@ -46,12 +46,28 @@ def safe_request(url, params=None, retries=3, delay=5):
 
 # Получение данных о монетах (топ-400)
 def get_top_400_coins():
-    url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 100, "page": 1}
-    data = safe_request(url, params)
-    if data:
-        return [d['id'] for d in data]
-    return []
+    symbols = []
+    total_pages = 4  # Всего 4 страницы, по 100 монет на странице
+
+    # Загружаем монеты с 4 страниц
+    for page in range(1, total_pages + 1):
+        url = "https://api.coingecko.com/api/v3/coins/markets"
+        params = {
+            "vs_currency": "usd",
+            "order": "market_cap_desc",
+            "per_page": 100,  # 100 монет на странице
+            "page": page
+        }
+        data = safe_request(url, params)
+        if not data:
+            continue
+        symbols.extend([d['id'] for d in data])
+
+    # Логируем общее количество монет
+    print(f"Загружено {len(symbols)} монет")
+
+    return symbols
+
 
 # Получение исторических данных по монете
 def fetch_ohlcv(symbol):
