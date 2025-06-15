@@ -71,7 +71,7 @@ def get_top_400_coins():
 
 def fetch_ohlcv(symbol):
     url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
-    params = {"vs_currency": "usd", "days": "90", "interval": "daily"}
+    params = {"vs_currency": "usd", "days": "7", "interval": "daily"}
     data = safe_request(url, params)
     
     if not data:
