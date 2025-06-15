@@ -53,16 +53,14 @@ def get_binance_data(symbol, interval='1d', limit=1000):
     }
 
     print(f"Запрос для {symbol}: {url}, параметры: {params}")  # Логируем запрос
-    response = requests.get(url, params=params)
-    print(f"Ответ от API для {symbol}: {response.status_code}")  # Логируем статус ответа
-
-    if response.status_code != 200:
-        print(f"Ошибка при запросе для {symbol}: {response.status_code}")
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Проверка на успешный ответ
+    except requests.exceptions.RequestException as e:
+        print(f"Ошибка при запросе для {symbol}: {e}")
         return None
 
     data = response.json()
-    print(f"Ответ API для {symbol}: {data}")  # Логируем данные ответа
-
     if not data:
         print(f"Нет данных для монеты {symbol}")
         return None
@@ -73,8 +71,9 @@ def get_binance_data(symbol, interval='1d', limit=1000):
     df = df[['timestamp', 'close']]
     df['close'] = pd.to_numeric(df['close'])
 
-    print(f"Получены данные для {symbol}: {len(df)} строк.")  # Логируем количество полученных строк
+    print(f"Получены данные для {symbol}: {len(df)} строк.")
     return df
+
 
 
 # Анализ монет
