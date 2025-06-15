@@ -51,25 +51,31 @@ def get_binance_data(symbol, interval='1d', limit=1000):
         'interval': interval,  # интервал, например '1d' (1 день)
         'limit': limit  # максимум 1000 записей
     }
-    
+
+    print(f"Запрос для {symbol}: {url}, параметры: {params}")  # Логируем запрос
     response = requests.get(url, params=params)
+    print(f"Ответ от API для {symbol}: {response.status_code}")  # Логируем статус ответа
+
+    if response.status_code != 200:
+        print(f"Ошибка при запросе для {symbol}: {response.status_code}")
+        return None
+
     data = response.json()
-    
+    print(f"Ответ API для {symbol}: {data}")  # Логируем данные ответа
+
     if not data:
         print(f"Нет данных для монеты {symbol}")
         return None
     
     # Преобразуем данные в DataFrame для дальнейшего анализа
     df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "close_time", "quote_asset_volume", "number_of_trades", "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"])
-    
-    # Преобразуем timestamp в дату
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    
-    # Оставляем только нужные столбцы
     df = df[['timestamp', 'close']]
     df['close'] = pd.to_numeric(df['close'])
-    
+
+    print(f"Получены данные для {symbol}: {len(df)} строк.")  # Логируем количество полученных строк
     return df
+
 
 # Анализ монет
 def analyze_symbols(symbols, state):
