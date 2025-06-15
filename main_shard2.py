@@ -90,23 +90,27 @@ def fetch_ohlcv(symbol):
 
 
 def analyze_symbols(symbols):
+    print(f"Всего монет для анализа: {len(symbols)}")
     for symbol in symbols:
-        # Логируем, какие монеты обрабатываются
         print(f"Обрабатывается монета: {symbol}")
         
-        # Получаем данные для каждой монеты (например, цену и lower2)
-        df = fetch_ohlcv(symbol)  # Эта функция должна быть настроена на правильный анализ
+        df = fetch_ohlcv(symbol)
         if df is None or len(df) < 12:
             continue
         price = df["price"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
         
-        # Логируем цену и уровень lower2 для каждой монеты
         print(f"{symbol} цена: {price} | Lower2: {lower2} | Δ: {(price - lower2) / lower2 * 100:.2f}%")
         
-        # Дополнительная логика обработки монет, например, если цена ниже lower2
         if price <= lower2:
             print(f"Уведомление: Монета {symbol} достигла Lower2!")
+        else:
+            print(f"Монета {symbol} не достигла Lower2 (цена: {price}, Lower2: {lower2})")
+
+def main():
+    symbols = get_symbols_shard(0)  # Получаем монеты для этого шардового скрипта
+    print(f"Количество монет в symbols: {len(symbols)}")
+    analyze_symbols(symbols)  # Анализируем монеты
 
 
 
