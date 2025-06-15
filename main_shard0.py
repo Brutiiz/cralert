@@ -89,10 +89,17 @@ def analyze_symbols(symbols, state):
     today = str(datetime.utcnow().date())
     matched, near = [], []
 
+    # Логируем количество монет, которые анализируются
+    print(f"Всего монет для анализа: {len(symbols)}")
+    
     for symbol in symbols:
+        print(f"Обрабатывается монета: {symbol}")  # Логируем каждую обрабатываемую монету
+        
         df = fetch_ohlcv(symbol)
         if df is None or len(df) < 12:
+            print(f"Нет данных или недостаточно данных для монеты {symbol}")  # Логируем, если нет данных
             continue
+
         price = df["price"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
         diff_percent = (price - lower2) / lower2 * 100
@@ -112,6 +119,10 @@ def analyze_symbols(symbols, state):
 
     save_state(state)
 
+    # Логируем, сколько монет были обработаны
+    print(f"Обработано {len(matched)} монет с достижением уровня")
+    print(f"Обработано {len(near)} монет, которые почти достигли уровня")
+
     # Отправляем уведомления
     if matched:
         msg = "📉 Монеты КАСНУЛИСЬ Lower 2:\n" + "\n".join(matched)
@@ -119,6 +130,7 @@ def analyze_symbols(symbols, state):
     if near:
         msg = "📡 Почти дошли до Lower 2:\n" + "\n".join(near)
         send_message(msg)
+
 
 def main():
     state = load_state()
