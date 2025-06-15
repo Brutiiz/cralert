@@ -56,12 +56,20 @@ def get_symbols_shard(shard_index):
         data = safe_request(url, params)
         if not data:
             continue
+
+        # Логирование количества монет на текущей странице
+        print(f"Страница {page}, количество монет: {len(data)}")
+        
         symbols.extend([d['id'] for d in data])
 
-    # Для shard0 обрабатываются монеты с 0 по 99
-    start = 0
-    end = 100
+    # Логируем общее количество монет в symbols
+    print(f"Количество монет в symbols: {len(symbols)}")
+
+    # Для shard0 обрабатываются монеты с 0 по 99, для shard1 — с 100 по 199 и так далее
+    start = shard_index * 100
+    end = (shard_index + 1) * 100
     return symbols[start:end]
+
 
 
 
