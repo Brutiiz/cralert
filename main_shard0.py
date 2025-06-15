@@ -44,6 +44,7 @@ def safe_request(url, params=None, retries=3, delay=5):
             time.sleep(delay)
     return None
 
+# Получение символов монет для анализа
 def get_symbols_shard(shard_index):
     symbols = []
     total_pages = 4  # Всего 4 страницы, по 100 монет на странице
@@ -67,8 +68,7 @@ def get_symbols_shard(shard_index):
 
     # Логируем общее количество монет в symbols
     print(f"Количество монет в symbols: {len(symbols)}")
-    return symbols[start:end]
-
+    return symbols  # Возвращаем все монеты
 
 
 def fetch_ohlcv(symbol):
@@ -98,10 +98,6 @@ def fetch_ohlcv(symbol):
     df["sma12"] = df["price"].rolling(12).mean()  # Расчет 12-дневной SMA
     df["lower2"] = df["sma12"] * (1 - 0.2558)  # Ожидаемое снижение на 25.58%
     return df
-
-
-
-
 
 
 # Анализ монет
@@ -154,7 +150,7 @@ def analyze_symbols(symbols, state):
 
 def main():
     state = load_state()
-    symbols = get_top_400_coins()  # Получаем список топ-400 монет
+    symbols = get_symbols_shard(0)  # Получаем список топ-400 монет
     analyze_symbols(symbols, state)
 
 if __name__ == "__main__":
