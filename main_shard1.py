@@ -71,9 +71,6 @@ def get_symbols_shard(shard_index):
     return symbols[start:end]
 
 
-
-
-
 def fetch_ohlcv(symbol):
     url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
     params = {"vs_currency": "usd", "days": "90", "interval": "daily"}
@@ -108,50 +105,11 @@ def analyze_symbols(symbols):
             print(f"Монета {symbol} не достигла Lower2 (цена: {price}, Lower2: {lower2})")
 
 def main():
-    symbols = get_symbols_shard(2)  # Для shard2
-    print(f"Количество монет в symbols: {len(symbols)}")  # Логируем количество монет в symbols
-    print(f"Монеты: {symbols}")  # Логируем все монеты в списке symbols
-    analyze_symbols(symbols)  # Анализируем монеты
-
-
-
-
-
-def main():
     shard_index = 0
     symbols = get_symbols_shard(shard_index)
-    state = load_state()
-    today = str(datetime.utcnow().date())
-    matched, near = [], []
-
-    for symbol in symbols:
-        df = fetch_ohlcv(symbol)
-        if df is None or len(df) < 12:
-            continue
-        price = df["price"].iloc[-1]
-        lower2 = df["lower2"].iloc[-1]
-        if pd.isna(lower2):
-            continue
-        diff_percent = (price - lower2) / lower2 * 100
-        print(f"{symbol:<15} цена: {price:.4f} | Lower2: {lower2:.4f} | Δ: {diff_percent:.2f}%")
-
-        if state.get(symbol) == today:
-            continue  # уже был сигнал сегодня
-
-        if price <= lower2:
-            matched.append(symbol)
-            state[symbol] = today
-        elif 0 < diff_percent <= 3:
-            near.append(symbol)
-
-    save_state(state)
-
-    if matched:
-        msg = "📉 Монеты КАСНУЛИСЬ Lower 2 (шард 0):\n" + "\n".join(matched)
-        send_message(msg)
-    if near:
-        msg = "📡 Почти дошли до Lower 2 (шард 0):\n" + "\n".join(near)
-        send_message(msg)
+    print(f"Количество монет в symbols: {len(symbols)}")  # Логируем количество монет
+    print(f"Монеты: {symbols}")  # Логируем все монеты
+    analyze_symbols(symbols)  # Анализируем монеты
 
 if __name__ == "__main__":
     main()
