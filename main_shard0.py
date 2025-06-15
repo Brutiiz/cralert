@@ -1,10 +1,10 @@
 import requests
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 import json
 import time
 import os
+from datetime import datetime
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -44,80 +44,54 @@ def safe_request(url, params=None, retries=3, delay=5):
             time.sleep(delay)
     return None
 
-# Получение символов монет для анализа
-def get_symbols_shard(shard_index):
-    symbols = []
-    total_pages = 4  # Всего 4 страницы, по 100 монет на странице
-
-    for page in range(1, total_pages + 1):
-        url = "https://api.coingecko.com/api/v3/coins/markets"
-        params = {
-            "vs_currency": "usd",
-            "order": "market_cap_desc",
-            "per_page": 100,  # 100 монет на странице
-            "page": page
-        }
-        data = safe_request(url, params)
-        if not data:
-            continue
-
-        # Логирование количества монет на текущей странице
-        print(f"Страница {page}, количество монет: {len(data)}")
-        
-        symbols.extend([d['id'] for d in data])
-
-    # Логируем общее количество монет в symbols
-    print(f"Количество монет в symbols: {len(symbols)}")
-    return symbols  # Возвращаем все монеты
-
-
-def fetch_ohlcv(symbol):
-    url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
-    params = {"vs_currency": "usd", "days": "30", "interval": "daily"}
-    data = safe_request(url, params)
+def get_binance_data(symbol, interval='1d', limit=1000):
+    url = f'https://api.binance.com/api/v1/klines'
+    params = {
+        'symbol': symbol,  # Например 'BTCUSDT'
+        'interval': interval,  # интервал, например '1d' (1 день)
+        'limit': limit  # максимум 1000 записей
+    }
     
-    # Логирование ответа
-    print(f"Ответ API для {symbol}: {data}")
-
+    response = requests.get(url, params=params)
+    data = response.json()
+    
     if not data:
-        print(f"Ошибка: Нет данных для монеты {symbol}")
-        return None
-    elif 'prices' not in data:
-        print(f"Ошибка: Нет данных о ценах для монеты {symbol}. Ответ API: {data}")
+        print(f"Нет данных для монеты {symbol}")
         return None
     
-    df = pd.DataFrame(data["prices"], columns=["timestamp", "price"])
-    df["price"] = df["price"].astype(float)
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-    df.set_index("timestamp", inplace=True)
-
-    if len(df) < 12:
-        print(f"Недостаточно данных для монеты {symbol} (менее 12 точек данных)")  # Логируем
-        return None
-
-    df["sma12"] = df["price"].rolling(12).mean()  # Расчет 12-дневной SMA
-    df["lower2"] = df["sma12"] * (1 - 0.2558)  # Ожидаемое снижение на 25.58%
+    # Преобразуем данные в DataFrame для дальнейшего анализа
+    df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "close_time", "quote_asset_volume", "number_of_trades", "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"])
+    
+    # Преобразуем timestamp в дату
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    
+    # Оставляем только нужные столбцы
+    df = df[['timestamp', 'close']]
+    df['close'] = pd.to_numeric(df['close'])
+    
     return df
-
-
 
 # Анализ монет
 def analyze_symbols(symbols, state):
     today = str(datetime.utcnow().date())
     matched, near = [], []
 
-    # Логируем количество монет, которые анализируются
     print(f"Всего монет для анализа: {len(symbols)}")
     
     for symbol in symbols:
-        print(f"Обрабатывается монета: {symbol}")  # Логируем каждую обрабатываемую монету
+        print(f"Обрабатывается монета: {symbol}")
         
-        df = fetch_ohlcv(symbol)
+        # Получаем данные для монеты
+        df = get_binance_data(symbol)
         if df is None or len(df) < 12:
-            print(f"Нет данных или недостаточно данных для монеты {symbol}")  # Логируем, если нет данных
+            print(f"Нет данных или недостаточно данных для монеты {symbol}")
             continue
-
-        price = df["price"].iloc[-1]
+        
+        # Расчет 12-дневной SMA
+        df["sma12"] = df["close"].rolling(12).mean()  # Расчет 12-дневной SMA
+        df["lower2"] = df["sma12"] * (1 - 0.2558)  # Ожидаемое снижение на 25.58%
+        
+        price = df["close"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
         diff_percent = (price - lower2) / lower2 * 100
         print(f"{symbol} цена: {price:.2f} | Lower2: {lower2:.2f} | Δ: {diff_percent:.2f}%")
@@ -136,7 +110,6 @@ def analyze_symbols(symbols, state):
 
     save_state(state)
 
-    # Логируем, сколько монет были обработаны
     print(f"Обработано {len(matched)} монет с достижением уровня")
     print(f"Обработано {len(near)} монет, которые почти достигли уровня")
 
@@ -148,10 +121,11 @@ def analyze_symbols(symbols, state):
         msg = "📡 Почти дошли до Lower 2:\n" + "\n".join(near)
         send_message(msg)
 
-
 def main():
     state = load_state()
-    symbols = get_symbols_shard(0)  # Получаем список топ-400 монет
+    
+    # Получаем список монет (для примера: BTC, ETH, BNB и т.д.)
+    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT']  # Пример монет
     analyze_symbols(symbols, state)
 
 if __name__ == "__main__":
