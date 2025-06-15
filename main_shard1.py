@@ -108,9 +108,11 @@ def analyze_symbols(symbols):
             print(f"Монета {symbol} не достигла Lower2 (цена: {price}, Lower2: {lower2})")
 
 def main():
-    symbols = get_symbols_shard(0)  # Получаем монеты для этого шардового скрипта
-    print(f"Количество монет в symbols: {len(symbols)}")
+    symbols = get_symbols_shard(2)  # Для shard2
+    print(f"Количество монет в symbols: {len(symbols)}")  # Логируем количество монет в symbols
+    print(f"Монеты: {symbols}")  # Логируем все монеты в списке symbols
     analyze_symbols(symbols)  # Анализируем монеты
+
 
 
 
