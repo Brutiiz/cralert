@@ -44,28 +44,34 @@ def safe_request(url, params=None, retries=3, delay=5):
 def get_symbols_shard(shard_index):
     symbols = []
     total_pages = 4  # Всего 4 страницы, по 100 монет на странице
+    symbols_per_shard = 100  # Каждый шард получает 100 монет
 
-    # Для каждого шардового индекса будем правильно вычислять, какие страницы запрашиваются
-    start_page = shard_index  # Индекс страницы для каждого шардового скрипта
-    end_page = shard_index + 1  # На следующем шаге будет следующая страница
+    # Рассчитываем, с какой страницы нужно начать для каждого шардового скрипта
+    start_page = shard_index + 1  # Если shard_index == 0, то начинаем с первой страницы
+    end_page = start_page + 1     # Переходим к следующей странице
 
-    for page in range(start_page, total_pages, 4):  # 4 шага для обхода разных страниц
+    for page in range(start_page, end_page):
         url = "https://api.coingecko.com/api/v3/coins/markets"
         params = {
             "vs_currency": "usd",
             "order": "market_cap_desc",
-            "per_page": 100,  # 100 монет на странице
+            "per_page": symbols_per_shard,  # 100 монет на странице
             "page": page
         }
         data = safe_request(url, params)
         if not data:
             continue
+
+        # Логирование количества монет на текущей странице
+        print(f"Страница {page}, количество монет: {len(data)}")
+        
         symbols.extend([d['id'] for d in data])
 
     # Логируем, сколько монет загружено
     print(f"Загружено {len(symbols)} монет на шард {shard_index}")
     
     return symbols
+
 
 
 
