@@ -43,7 +43,7 @@ def safe_request(url, params=None, retries=3, delay=5):
 
 def get_symbols_shard(shard_index):
     symbols = []
-    total_pages = 4  # Так как у вас всего 400 монет (4 * 100), обрабатываем 4 страницы
+    total_pages = 4  # Всего 4 страницы, по 100 монет на странице
 
     for page in range(1, total_pages + 1):
         url = "https://api.coingecko.com/api/v3/coins/markets"
@@ -56,11 +56,19 @@ def get_symbols_shard(shard_index):
         data = safe_request(url, params)
         if not data:
             continue
+        
+        # Логирование количества монет, полученных с этой страницы
+        print(f"Обрабатывается страница {page} с монетами: {len(data)}")  # Покажет сколько монет получено с каждой страницы
+        
         symbols.extend([d['id'] for d in data])  # Собираем все монеты с этой страницы
-    
+
+    # Логируем общее количество монет после обработки всех страниц
+    print(f"Общее количество монет: {len(symbols)}")  # Покажет сколько монет получено в сумме
+
     start = shard_index * 100
     end = (shard_index + 1) * 100
     return symbols[start:end]
+
 
 
 def fetch_ohlcv(symbol):
