@@ -43,21 +43,25 @@ def safe_request(url, params=None, retries=3, delay=5):
 
 def get_symbols_shard(shard_index):
     symbols = []
-    for page in range(1, 3):
+    total_pages = 4  # Так как у вас всего 400 монет (4 * 100), обрабатываем 4 страницы
+
+    for page in range(1, total_pages + 1):
         url = "https://api.coingecko.com/api/v3/coins/markets"
         params = {
             "vs_currency": "usd",
             "order": "market_cap_desc",
-            "per_page": 250,
+            "per_page": 100,  # 100 монет на странице
             "page": page
         }
         data = safe_request(url, params)
         if not data:
             continue
-        symbols.extend([d['id'] for d in data])
+        symbols.extend([d['id'] for d in data])  # Собираем все монеты с этой страницы
+    
     start = shard_index * 100
     end = (shard_index + 1) * 100
     return symbols[start:end]
+
 
 def fetch_ohlcv(symbol):
     url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
