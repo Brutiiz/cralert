@@ -127,12 +127,14 @@ def analyze_symbols(symbols, state):
         msg = "📡 Почти дошли до Lower 2:\n" + "\n".join(near)
         send_message(msg)
 
+
 def main():
     state = load_state()
     
-    # Получаем список монет (для примера: BTC, ETH, BNB и т.д.)
-    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT']  # Пример монет
+    # Используем только одну пару монет для тестирования
+    symbols = ['BTCUSDT']  # Пример только для BTCUSDT
     analyze_symbols(symbols, state)
 
 if __name__ == "__main__":
     main()
+
