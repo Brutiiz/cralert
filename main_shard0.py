@@ -13,7 +13,7 @@ STATE_FILE = "alert_state.json"
 
 def send_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {{"chat_id": CHAT_ID, "text": message}}
+    payload = {"chat_id": CHAT_ID, "text": message}
     try:
         requests.post(url, json=payload)
     except:
@@ -24,7 +24,7 @@ def load_state():
         with open(STATE_FILE, "r") as f:
             return json.load(f)
     except:
-        return {{}}
+        return {}
 
 def save_state(state):
     with open(STATE_FILE, "w") as f:
@@ -37,7 +37,7 @@ def safe_request(url, params=None, retries=3, delay=5):
             if r.status_code == 200:
                 return r.json()
         except Exception as e:
-            print(f"[Retry {{i+1}}] Error: {{e}}")
+            print(f"[Retry {i+1}] Error: {e}")
             time.sleep(delay)
     return None
 
@@ -45,12 +45,12 @@ def get_symbols_shard(shard_index):
     symbols = []
     for page in range(1, 3):
         url = "https://api.coingecko.com/api/v3/coins/markets"
-        params = {{
+        params = {
             "vs_currency": "usd",
             "order": "market_cap_desc",
             "per_page": 250,
             "page": page
-        }}
+        }
         data = safe_request(url, params)
         if not data:
             continue
@@ -60,8 +60,8 @@ def get_symbols_shard(shard_index):
     return symbols[start:end]
 
 def fetch_ohlcv(symbol):
-    url = f"https://api.coingecko.com/api/v3/coins/{{symbol}}/market_chart"
-    params = {{"vs_currency": "usd", "days": "90", "interval": "daily"}}
+    url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
+    params = {"vs_currency": "usd", "days": "90", "interval": "daily"}
     data = safe_request(url, params)
     if not data or 'prices' not in data:
         return None
@@ -89,7 +89,7 @@ def main():
         if pd.isna(lower2):
             continue
         diff_percent = (price - lower2) / lower2 * 100
-        print(f"{{symbol:<15}} цена: {{price:.4f}} | Lower2: {{lower2:.4f}} | Δ: {{diff_percent:.2f}}%")
+        print(f"{symbol:<15} цена: {price:.4f} | Lower2: {lower2:.4f} | Δ: {diff_percent:.2f}%")
 
         if state.get(symbol) == today:
             continue  # уже был сигнал сегодня
@@ -99,7 +99,6 @@ def main():
             state[symbol] = today
         elif 0 < diff_percent <= 3:
             near.append(symbol)
-            state[symbol] = today
 
     save_state(state)
 
