@@ -97,6 +97,7 @@ def analyze_symbols(symbols):
         
         df = fetch_ohlcv(symbol)
         if df is None or len(df) < 12:
+            print(f"Нет данных или недостаточно данных для монеты {symbol}")
             continue
         price = df["price"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
