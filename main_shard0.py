@@ -45,14 +45,13 @@ def safe_request(url, params=None, retries=3, delay=5):
     return None
 
 def get_binance_data(symbol, interval='1d', limit=1000):
-    url = f'https://api.binance.com/api/v1/klines'
+    url = f'https://api.binance.com/api/v3/klines'  # Используем v3 вместо v1
     params = {
         'symbol': symbol,  # Например 'BTCUSDT'
         'interval': interval,  # интервал, например '1d' (1 день)
         'limit': limit  # максимум 1000 записей
     }
 
-    # Добавляем заголовок для обхода возможных блокировок
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
