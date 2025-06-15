@@ -44,12 +44,10 @@ def safe_request(url, params=None, retries=3, delay=5):
             time.sleep(delay)
     return None
 
-# Получение данных о монетах (топ-400)
-def get_top_400_coins():
+def get_symbols_shard(shard_index):
     symbols = []
     total_pages = 4  # Всего 4 страницы, по 100 монет на странице
 
-    # Загружаем монеты с 4 страниц
     for page in range(1, total_pages + 1):
         url = "https://api.coingecko.com/api/v3/coins/markets"
         params = {
@@ -61,29 +59,30 @@ def get_top_400_coins():
         data = safe_request(url, params)
         if not data:
             continue
+
+        # Логирование количества монет на текущей странице
+        print(f"Страница {page}, количество монет: {len(data)}")
+        
         symbols.extend([d['id'] for d in data])
 
-    # Логируем общее количество монет
-    print(f"Загружено {len(symbols)} монет")
+    # Логируем общее количество монет в symbols
+    print(f"Количество монет в symbols: {len(symbols)}")
+    return symbols[start:end]
 
-    return symbols
 
 
 def fetch_ohlcv(symbol):
     url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
-    params = {"vs_currency": "usd", "days": "30", "interval": "daily"}  # Установим 30 дней
+    params = {"vs_currency": "usd", "days": "30", "interval": "daily"}
     data = safe_request(url, params)
-
-    # Логируем ответ
+    
+    # Логирование ответа
     print(f"Ответ API для {symbol}: {data}")
 
-    # Проверяем, если данные отсутствуют или вернулся пустой ответ
-    if data is None:
+    if not data:
         print(f"Ошибка: Нет данных для монеты {symbol}")
         return None
-    
-    # Проверяем наличие ключа 'prices' в ответе
-    if 'prices' not in data:
+    elif 'prices' not in data:
         print(f"Ошибка: Нет данных о ценах для монеты {symbol}. Ответ API: {data}")
         return None
     
