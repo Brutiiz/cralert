@@ -100,6 +100,7 @@ def fetch_ohlcv(symbol):
     return df
 
 
+
 # Анализ монет
 def analyze_symbols(symbols, state):
     today = str(datetime.utcnow().date())
