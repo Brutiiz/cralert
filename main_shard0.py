@@ -1,6 +1,5 @@
 import requests
 import pandas as pd
-import numpy as np
 import json
 import time
 import os
@@ -9,7 +8,6 @@ from datetime import datetime
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
-
 
 # Уведомление в Telegram
 def send_message(message):
@@ -33,58 +31,42 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
-# Выполнение безопасного запроса с повторными попытками
-def safe_request(url, params=None, retries=3, delay=5):
-    for i in range(retries):
-        try:
-            r = requests.get(url, params=params, timeout=10)
-            if r.status_code == 200:
-                return r.json()
-        except Exception as e:
-            print(f"[Retry {i+1}] Error: {e}")
-            time.sleep(delay)
-    return None
-
-def get_binance_data(symbol, interval='1d', limit=1000):
-    url = f'https://api.binance.com/api/v3/klines'  # Используем v3 вместо v1
+# Получение данных с CryptoCompare
+def get_cryptocompare_data(symbol, api_key, currency="USD", limit=2000):
+    url = "https://min-api.cryptocompare.com/data/v2/histoday"
     params = {
-        'symbol': symbol,  # Например 'BTCUSDT'
-        'interval': interval,  # интервал, например '1d' (1 день)
-        'limit': limit  # максимум 1000 записей
+        'fsym': symbol,  # Символ криптовалюты (например, 'BTC')
+        'tsym': currency,  # Валюта для конвертации (например, 'USD')
+        'limit': limit,  # Максимальное количество записей
+        'api_key': api_key  # Ваш API-ключ
     }
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-
-    print(f"Запрос для {symbol}: {url}, параметры: {params}")  # Логируем запрос
     try:
-        # Отправляем запрос с заголовками
-        response = requests.get(url, params=params, headers=headers)
-        response.raise_for_status()  # Проверка на успешный ответ
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if data['Response'] == 'Error':
+            print(f"Ошибка: {data['Message']}")
+            return None
+
+        # Преобразуем данные в DataFrame для дальнейшего анализа
+        prices = []
+        for item in data['Data']['Data']:
+            prices.append({
+                'timestamp': pd.to_datetime(item['time'], unit='s'),
+                'close': item['close']
+            })
+
+        df = pd.DataFrame(prices)
+        return df
+
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при запросе для {symbol}: {e}")
         return None
 
-    data = response.json()
-    if not data:
-        print(f"Нет данных для монеты {symbol}")
-        return None
-    
-    # Преобразуем данные в DataFrame для дальнейшего анализа
-    df = pd.DataFrame(data, columns=["timestamp", "open", "high", "low", "close", "volume", "close_time", "quote_asset_volume", "number_of_trades", "taker_buy_base_asset_volume", "taker_buy_quote_asset_volume", "ignore"])
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    df = df[['timestamp', 'close']]
-    df['close'] = pd.to_numeric(df['close'])
-
-    print(f"Получены данные для {symbol}: {len(df)} строк.")
-    return df
-
-
-
-
 # Анализ монет
-def analyze_symbols(symbols, state):
+def analyze_symbols(symbols, state, api_key):
     today = str(datetime.utcnow().date())
     matched, near = [], []
 
@@ -93,8 +75,8 @@ def analyze_symbols(symbols, state):
     for symbol in symbols:
         print(f"Обрабатывается монета: {symbol}")
         
-        # Получаем данные для монеты
-        df = get_binance_data(symbol)
+        # Получаем данные для монеты с CryptoCompare
+        df = get_cryptocompare_data(symbol, api_key)
         if df is None or len(df) < 12:
             print(f"Нет данных или недостаточно данных для монеты {symbol}")
             continue
@@ -133,14 +115,13 @@ def analyze_symbols(symbols, state):
         msg = "📡 Почти дошли до Lower 2:\n" + "\n".join(near)
         send_message(msg)
 
-
 def main():
     state = load_state()
     
-    # Используем только одну пару монет для тестирования
-    symbols = ['BTCUSDT']  # Пример только для BTCUSDT
-    analyze_symbols(symbols, state)
+    # Получаем список монет (для примера: BTC, ETH, BNB и т.д.)
+    symbols = ['BTC', 'ETH', 'BNB', 'ADA']  # Пример монет
+    api_key = "8022dab91fba7c6a0febb83cd0ae679782bc1c55cec240629c9367cba33ef5b1"  # Убедитесь, что заменили на ваш ключ
+    analyze_symbols(symbols, state, api_key)
 
 if __name__ == "__main__":
     main()
-
