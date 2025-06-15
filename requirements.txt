@@ -2,3 +2,5 @@ requests
 pandas
 numpy
 pip install requests
+pip install requests pandas
+
