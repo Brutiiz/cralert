@@ -50,24 +50,19 @@ def get_symbols_shard(shard_index):
         params = {
             "vs_currency": "usd",
             "order": "market_cap_desc",
-            "per_page": 100,  # 100 монет на странице
+            "per_page": 100,
             "page": page
         }
         data = safe_request(url, params)
         if not data:
             continue
-        
-        # Логирование количества монет, полученных с этой страницы
-        print(f"Обрабатывается страница {page} с монетами: {len(data)}")  # Покажет сколько монет получено с каждой страницы
-        
-        symbols.extend([d['id'] for d in data])  # Собираем все монеты с этой страницы
+        symbols.extend([d['id'] for d in data])
 
-    # Логируем общее количество монет после обработки всех страниц
-    print(f"Общее количество монет: {len(symbols)}")  # Покажет сколько монет получено в сумме
-
-    start = shard_index * 100
-    end = (shard_index + 1) * 100
+    # Для shard2 обрабатываются монеты с 200 по 299
+    start = 200
+    end = 300
     return symbols[start:end]
+
 
 
 
