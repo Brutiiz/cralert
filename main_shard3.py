@@ -97,6 +97,7 @@ def analyze_symbols(symbols):
         
         df = fetch_ohlcv(symbol)
         if df is None or len(df) < 12:
+            print(f"Нет данных или недостаточно данных для монеты {symbol}")
             continue
         price = df["price"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
@@ -107,6 +108,7 @@ def analyze_symbols(symbols):
             print(f"Уведомление: Монета {symbol} достигла Lower2!")
         else:
             print(f"Монета {symbol} не достигла Lower2 (цена: {price}, Lower2: {lower2})")
+
 
 def main():
     shard_index = 0
