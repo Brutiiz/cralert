@@ -71,13 +71,16 @@ def get_top_400_coins():
 
 def fetch_ohlcv(symbol):
     url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
-    params = {"vs_currency": "usd", "days": "13", "interval": "daily"}
-    data = safe_request(url, params)
+    params = {"vs_currency": "usd", "days": "90", "interval": "daily"}
     
-    if not data:
-        print(f"Ошибка: Нет данных для монеты {symbol}")  # Логируем, если запрос не вернул данных
-        return None
-    if 'prices' not in data:
+    # Выполняем запрос и проверяем ответ
+    data = safe_request(url, params)
+
+    # Логируем весь ответ от API, чтобы понять что приходит
+    if data:
+        print(f"Ответ API для {symbol}: {data}")
+    
+    if not data or 'prices' not in data:
         print(f"Ошибка: Нет данных о ценах для монеты {symbol}")  # Логируем, если нет цен
         return None
 
@@ -85,7 +88,7 @@ def fetch_ohlcv(symbol):
     df["price"] = df["price"].astype(float)
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
     df.set_index("timestamp", inplace=True)
-    
+
     if len(df) < 12:
         print(f"Недостаточно данных для монеты {symbol} (менее 12 точек данных)")  # Логируем, если данных недостаточно
         return None
@@ -93,6 +96,7 @@ def fetch_ohlcv(symbol):
     df["sma12"] = df["price"].rolling(12).mean()  # Расчет 12-дневной SMA
     df["lower2"] = df["sma12"] * (1 - 0.2558)  # Ожидаемое снижение на 25.58%
     return df
+
 
 
 # Анализ монет
