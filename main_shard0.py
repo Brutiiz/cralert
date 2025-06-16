@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 
 # Укажите ваш Telegram-бот токен
-TELEGRAM_TOKEN = "your_telegram_bot_token_here"  # Замените на ваш токен
+TELEGRAM_TOKEN = "8006093547:AAH_4uAYRZNmt6g4x8HHitBHETKu8P23haE"  # Замените на ваш токен
 
 CRYPTOCOMPARE_API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
