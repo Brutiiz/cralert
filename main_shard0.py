@@ -34,37 +34,42 @@ def save_state(state):
         json.dump(state, f)
 
 # Получение исторических данных с Bybit
-def get_bybit_data(symbol, interval='1', limit=1000):
-    url = "https://api.bybit.com/public/linear/kline"  # Исправленный эндпоинт
+import requests
+
+def get_bybit_data(symbol, api_key, interval='1', limit=1000):
+    url = "https://api.bybit.com/public/linear/kline"
     params = {
-        'symbol': symbol,  # Символ криптовалюты (например, 'BTCUSDT')
-        'interval': interval,  # Интервал, например '1' для 1 минуты, '3' для 3 минут и т.д.
-        'limit': limit,  # Максимальное количество записей
+        'symbol': symbol,  # Например 'BTCUSDT'
+        'interval': interval,  # интервал, например '1' (1 минута)
+        'limit': limit,  # максимум 1000 записей
+        'api_key': api_key  # Ваш API-ключ
     }
 
     try:
         response = requests.get(url, params=params)
-        response.raise_for_status()  # Проверка на успешный ответ
+        response.raise_for_status()
         data = response.json()
 
-        if data['ret_code'] != 0:
-            print(f"Ошибка при получении данных для {symbol}: {data['ret_msg']}")
+        if 'result' in data:
+            return data['result']
+        else:
+            print(f"Ошибка при запросе для {symbol}: {data}")
             return None
-
-        # Преобразуем данные в DataFrame для дальнейшего анализа
-        prices = []
-        for item in data['result']:
-            prices.append({
-                'timestamp': pd.to_datetime(item['open_time'], unit='s'),
-                'close': item['close']
-            })
-
-        df = pd.DataFrame(prices)
-        return df
-
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при запросе для {symbol}: {e}")
         return None
+
+api_key = 'YOUR_API_KEY'  # Замените на свой ключ API
+symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT']
+
+for symbol in symbols:
+    print(f"Обрабатывается монета: {symbol}")
+    data = get_bybit_data(symbol, api_key)
+    if data:
+        print(f"Данные для {symbol}: {data[:5]}")  # Печать первых 5 данных для проверки
+    else:
+        print(f"Нет данных для {symbol}")
+
 
 # Анализ монет
 def analyze_symbols(symbols, state):
