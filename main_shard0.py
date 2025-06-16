@@ -33,7 +33,7 @@ def send_message(message):
     try:
         print(f"TELEGRAM_TOKEN: {TELEGRAM_TOKEN}")  # Выводим токен для отладки
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        payload = {"chat_id": CHAT_ID, "text": message}
+        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
         response = requests.post(url, json=payload)
         response.raise_for_status()  # Проверка успешности запроса
         print("Сообщение отправлено успешно!")
