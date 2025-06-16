@@ -4,10 +4,6 @@ import json
 import time
 import os
 from datetime import datetime
-from dotenv import load_dotenv
-
-# Загружаем переменные окружения из .env файла
-load_dotenv()
 
 # Получаем Telegram токен и другие данные из переменных окружения
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Токен Telegram бота
