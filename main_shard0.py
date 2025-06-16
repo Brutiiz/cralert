@@ -5,6 +5,9 @@ import time
 import os
 from datetime import datetime
 
+# Укажите ваш Telegram-бот токен
+TELEGRAM_TOKEN = "your_telegram_bot_token_here"  # Замените на ваш токен
+
 CRYPTOCOMPARE_API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
@@ -29,6 +32,7 @@ def save_state(state):
 # Уведомление в Telegram
 def send_message(message):
     try:
+        print(f"TELEGRAM_TOKEN: {TELEGRAM_TOKEN}")  # Выводим токен для отладки
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         payload = {"chat_id": CHAT_ID, "text": message}
         response = requests.post(url, json=payload)
@@ -66,14 +70,14 @@ def get_top_310_coins():
             'page': page,   # Указываем страницу
             'tsym': 'USD',  # Выводим по отношению к USD
         }
-        
+
         data = safe_request(url, params, retries=3, delay=2, backoff=2)
-        
+
         if data and 'Data' in data:
             # Фильтруем монеты по рыночной капитализации, проверяя наличие нужных ключей
             filtered_coins = [
-                coin['CoinInfo']['Name'] 
-                for coin in data['Data'] 
+                coin['CoinInfo']['Name']
+                for coin in data['Data']
                 if 'RAW' in coin and 'USD' in coin['RAW'] and 'MKTCAP' in coin['RAW']['USD'] and coin['RAW']['USD']['MKTCAP'] is not None
             ]
             coins.extend(filtered_coins)
@@ -84,34 +88,12 @@ def get_top_310_coins():
         page += 1
         if len(data['Data']) < 100:  # Если на странице меньше 100 монет, то завершить
             break
-        
+
         # Задержка между запросами для предотвращения блокировки
         print(f"Загружено {len(coins)} монет из 310, задержка на 2 секунды...")
         time.sleep(2)
 
     return coins[:310]  # Ограничиваем 310 монетами
-
-# Получение данных для монеты с CryptoCompare
-def get_coin_data(symbol):
-    url = f"https://min-api.cryptocompare.com/data/v2/histoday"
-    params = {
-        "apiKey": CRYPTOCOMPARE_API_KEY,
-        "fsym": symbol,
-        "tsym": "USD",
-        "limit": 30,  # Данные за последние 30 дней
-        "aggregate": 1,
-    }
-    data = safe_request(url, params, retries=3, delay=5, backoff=2)
-    
-    if data is None or 'Data' not in data:
-        print(f"Ошибка: Нет данных для монеты {symbol}")
-        return None
-    
-    df = pd.DataFrame(data["Data"]["Data"], columns=["time", "close"])
-    df["close"] = df["close"].astype(float)
-    df["timestamp"] = pd.to_datetime(df["time"], unit="s")
-    df.set_index("timestamp", inplace=True)
-    return df
 
 # Анализ монет
 def analyze_symbols(symbols, state):
@@ -119,20 +101,20 @@ def analyze_symbols(symbols, state):
     matched, near = [], []
 
     print(f"Всего монет для анализа: {len(symbols)}")
-    
+
     for symbol in symbols:
         print(f"Обрабатывается монета: {symbol}")
-        
+
         # Получаем данные для монеты с CryptoCompare
         df = get_coin_data(symbol)
         if df is None or len(df) < 12:
             print(f"Нет данных или недостаточно данных для монеты {symbol}")
             continue
-        
+
         # Расчет 12-дневной SMA
         df["sma12"] = df["close"].rolling(12).mean()  # Расчет 12-дневной SMA
         df["lower2"] = df["sma12"] * (1 - 0.2558)  # Ожидаемое снижение на 25.58%
-        
+
         price = df["close"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
         diff_percent = (price - lower2) / lower2 * 100
@@ -170,7 +152,7 @@ def analyze_symbols(symbols, state):
 
 def main():
     state = load_state()
-    
+
     # Получаем список топ-310 монет
     symbols = get_top_310_coins()  # Получаем топ 310 монет по капитализации
     if symbols:
