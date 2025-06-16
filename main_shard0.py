@@ -5,7 +5,7 @@ import time
 import os
 from datetime import datetime
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CRYPTOCOMPARE_API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
 
@@ -48,30 +48,32 @@ def safe_request(url, params, retries=3, delay=5, backoff=2):
             else:
                 return None  # Если все попытки не удались, возвращаем None
 
-# Получение топ-400 монет с CoinGecko
+# Получение топ-400 монет с CryptoCompare
 def get_top_400_coins():
-    url = "https://api.coingecko.com/api/v3/coins/markets"
+    url = "https://min-api.cryptocompare.com/data/top/totalvolfull"
     coins = []
     page = 1
 
     while len(coins) < 400:
         params = {
-            'vs_currency': 'usd',
-            'order': 'market_cap_desc',
-            'per_page': 100,  # Максимум 100 монет на страницу
-            'page': page,     # Указываем страницу
+            'apiKey': CRYPTOCOMPARE_API_KEY,
+            'limit': 100,  # Максимум 100 монет на страницу
+            'page': page,   # Указываем страницу
+            'tsym': 'USD',  # Выводим по отношению к USD
         }
         
         data = safe_request(url, params, retries=3, delay=2, backoff=2)
         
-        if data:
-            coins.extend([coin['id'] for coin in data])
+        if data and 'Data' in data:
+            # Фильтруем монеты по рыночной капитализации
+            filtered_coins = [coin['CoinInfo']['Name'] for coin in data['Data'] if coin['RAW']['USD']['MKTCAP'] is not None]
+            coins.extend(filtered_coins)
         else:
             print("Ошибка при получении данных.")
             break
 
         page += 1
-        if len(data) < 100:  # Если на странице меньше 100 монет, то завершить
+        if len(data['Data']) < 100:  # Если на странице меньше 100 монет, то завершить
             break
         
         # Задержка между запросами для предотвращения блокировки
@@ -80,19 +82,25 @@ def get_top_400_coins():
 
     return coins[:400]
 
-# Получение данных для монеты с CoinGecko
+# Получение данных для монеты с CryptoCompare
 def get_coin_data(symbol):
-    url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
-    params = {"vs_currency": "usd", "days": "30", "interval": "daily"}
+    url = f"https://min-api.cryptocompare.com/data/v2/histoday"
+    params = {
+        "apiKey": CRYPTOCOMPARE_API_KEY,
+        "fsym": symbol,
+        "tsym": "USD",
+        "limit": 30,  # Данные за последние 30 дней
+        "aggregate": 1,
+    }
     data = safe_request(url, params, retries=3, delay=5, backoff=2)
     
-    if data is None or 'prices' not in data:
+    if data is None or 'Data' not in data:
         print(f"Ошибка: Нет данных для монеты {symbol}")
         return None
     
-    df = pd.DataFrame(data["prices"], columns=["timestamp", "price"])
-    df["price"] = df["price"].astype(float)
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+    df = pd.DataFrame(data["Data"]["Data"], columns=["time", "close"])
+    df["close"] = df["close"].astype(float)
+    df["timestamp"] = pd.to_datetime(df["time"], unit="s")
     df.set_index("timestamp", inplace=True)
     return df
 
@@ -106,17 +114,17 @@ def analyze_symbols(symbols, state):
     for symbol in symbols:
         print(f"Обрабатывается монета: {symbol}")
         
-        # Получаем данные для монеты с CoinGecko
+        # Получаем данные для монеты с CryptoCompare
         df = get_coin_data(symbol)
         if df is None or len(df) < 12:
             print(f"Нет данных или недостаточно данных для монеты {symbol}")
             continue
         
         # Расчет 12-дневной SMA
-        df["sma12"] = df["price"].rolling(12).mean()  # Расчет 12-дневной SMA
+        df["sma12"] = df["close"].rolling(12).mean()  # Расчет 12-дневной SMA
         df["lower2"] = df["sma12"] * (1 - 0.2558)  # Ожидаемое снижение на 25.58%
         
-        price = df["price"].iloc[-1]
+        price = df["close"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
         diff_percent = (price - lower2) / lower2 * 100
         print(f"{symbol} цена: {price:.4f} | Lower2: {lower2:.4f} | Δ: {diff_percent:.2f}%")
