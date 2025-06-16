@@ -8,6 +8,7 @@ from datetime import datetime
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
+API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")  # Ваш API-ключ для CryptoCompare
 
 # Уведомление в Telegram
 def send_message(message):
@@ -31,14 +32,39 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
-# Получение данных с CryptoCompare
+# Получение топ-400 монет с CryptoCompare
+def get_top_400(api_key):
+    url = "https://min-api.cryptocompare.com/data/top/mktcapfull"
+    params = {
+        'limit': 400,  # Получаем топ 400 монет
+        'tsym': 'USD',  # По капитализации в долларах
+        'api_key': api_key
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if "Data" in data:
+            symbols = [coin['CoinInfo']['Name'] for coin in data['Data']]
+            print(f"Полученные монеты: {symbols}")
+            return symbols
+        else:
+            print("Ошибка: Не удается найти 'Data' в ответе.")
+            return []
+    except requests.exceptions.RequestException as e:
+        print(f"Ошибка при запросе для топ-400: {e}")
+        return []
+
+# Получение данных с CryptoCompare для анализа
 def get_cryptocompare_data(symbol, api_key, currency="USD", limit=2000):
     url = "https://min-api.cryptocompare.com/data/v2/histoday"
     params = {
         'fsym': symbol,  # Символ криптовалюты (например, 'BTC')
         'tsym': currency,  # Валюта для конвертации (например, 'USD')
         'limit': limit,  # Максимальное количество записей
-        'api_key': api_key  # Ваш API-ключ
+        'api_key': 8022dab91fba7c6a0febb83cd0ae679782bc1c55cec240629c9367cba33ef5b1  # Ваш API-ключ
     }
 
     try:
@@ -118,10 +144,10 @@ def analyze_symbols(symbols, state, api_key):
 def main():
     state = load_state()
     
-    # Получаем список монет (для примера: BTC, ETH, BNB и т.д.)
-    symbols = ['BTC', 'ETH', 'BNB', 'ADA']  # Пример монет
-    api_key = "8022dab91fba7c6a0febb83cd0ae679782bc1c55cec240629c9367cba33ef5b1"  # Убедитесь, что заменили на ваш ключ
-    analyze_symbols(symbols, state, api_key)
+    # Получаем список топ-400 монет
+    symbols = get_top_400(API_KEY)  # Получаем топ 400 монет по капитализации
+    if symbols:
+        analyze_symbols(symbols, state, API_KEY)  # Анализируем монеты
 
 if __name__ == "__main__":
     main()
