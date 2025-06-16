@@ -45,6 +45,10 @@ def get_bybit_data(symbol, api_key, interval='1', limit=1000):
 
     try:
         response = requests.get(url, params=params)
+        # Логируем все ответы
+        print(f"Ответ от Bybit: {response.status_code}, {response.text}")
+        
+        # Проверяем статус ответа
         response.raise_for_status()
         data = response.json()
 
@@ -102,23 +106,4 @@ def analyze_symbols(symbols, state, api_key):
 
     save_state(state)
 
-    print(f"Обработано {len(matched)} монет с достижением уровня")
-    print(f"Обработано {len(near)} монет, которые почти достигли уровня")
-
-    # Отправляем уведомления
-    if matched:
-        msg = "📉 Монеты КАСНУЛИСЬ Lower 2:\n" + "\n".join(matched)
-        send_message(msg)
-    if near:
-        msg = "📡 Почти дошли до Lower 2:\n" + "\n".join(near)
-        send_message(msg)
-
-def main():
-    state = load_state()
-    
-    # Здесь вручную указываем монеты для анализа (например, BTCUSDT, ETHUSDT)
-    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT']  # Пример монет, которые хочешь анализировать
-    analyze_symbols(symbols, state, BYBIT_API_KEY)
-
-if __name__ == "__main__":
-    main()
+    print(f"Обработано {len(matched)} монет с до
