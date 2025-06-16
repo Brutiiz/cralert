@@ -34,8 +34,6 @@ def save_state(state):
         json.dump(state, f)
 
 # Получение исторических данных с Bybit
-import requests
-
 def get_bybit_data(symbol, api_key, interval='1', limit=1000):
     url = "https://api.bybit.com/public/linear/kline"
     params = {
@@ -59,20 +57,8 @@ def get_bybit_data(symbol, api_key, interval='1', limit=1000):
         print(f"Ошибка при запросе для {symbol}: {e}")
         return None
 
-api_key = 'YOUR_API_KEY'  # Замените на свой ключ API
-symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT']
-
-for symbol in symbols:
-    print(f"Обрабатывается монета: {symbol}")
-    data = get_bybit_data(symbol, api_key)
-    if data:
-        print(f"Данные для {symbol}: {data[:5]}")  # Печать первых 5 данных для проверки
-    else:
-        print(f"Нет данных для {symbol}")
-
-
 # Анализ монет
-def analyze_symbols(symbols, state):
+def analyze_symbols(symbols, state, api_key):
     today = str(datetime.utcnow().date())
     matched, near = [], []
 
@@ -82,10 +68,16 @@ def analyze_symbols(symbols, state):
         print(f"Обрабатывается монета: {symbol}")
         
         # Получаем данные для монеты с Bybit
-        df = get_bybit_data(symbol)
-        if df is None or len(df) < 12:
+        data = get_bybit_data(symbol, api_key)
+        if not data or len(data) < 12:
             print(f"Нет данных или недостаточно данных для монеты {symbol}")
             continue
+        
+        # Преобразуем данные в DataFrame
+        df = pd.DataFrame(data)
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+        df.set_index('timestamp', inplace=True)
+        df['close'] = pd.to_numeric(df['close'])
         
         # Расчет 12-дневной SMA
         df["sma12"] = df["close"].rolling(12).mean()  # Расчет 12-дневной SMA
@@ -126,7 +118,7 @@ def main():
     
     # Здесь вручную указываем монеты для анализа (например, BTCUSDT, ETHUSDT)
     symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT']  # Пример монет, которые хочешь анализировать
-    analyze_symbols(symbols, state)
+    analyze_symbols(symbols, state, BYBIT_API_KEY)
 
 if __name__ == "__main__":
     main()
