@@ -34,7 +34,7 @@ def save_state(state):
 
 # Получение топ-400 монет с CryptoCompare
 def get_top_400(api_key):
-    url = "https://min-api.cryptocompare.com/data/top/mktcapfull"
+    url = "https://min-api.cryptocompare.com/data/top/totalvolumes"
     params = {
         'limit': 400,  # Получаем топ 400 монет
         'tsym': 'USD',  # По капитализации в долларах
@@ -64,7 +64,7 @@ def get_cryptocompare_data(symbol, api_key, currency="USD", limit=2000):
         'fsym': symbol,  # Символ криптовалюты (например, 'BTC')
         'tsym': currency,  # Валюта для конвертации (например, 'USD')
         'limit': limit,  # Максимальное количество записей
-        'api_key': 8022dab91fba7c6a0febb83cd0ae679782bc1c55cec240629c9367cba33ef5b1  # Ваш API-ключ
+        'api_key': api_key  # Ваш API-ключ
     }
 
     try:
