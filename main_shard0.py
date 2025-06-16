@@ -46,6 +46,9 @@ def get_top_400(api_key):
         response.raise_for_status()
         data = response.json()
 
+        # Логирование содержимого ответа API
+        print(f"Ответ от API: {json.dumps(data, indent=2)}")
+
         if "Data" in data:
             symbols = [coin['CoinInfo']['Name'] for coin in data['Data']]
             print(f"Полученные монеты: {symbols}")
