@@ -35,9 +35,9 @@ def save_state(state):
 
 # Получение исторических данных с Bybit
 def get_bybit_data(symbol, interval='1', limit=1000):
-    url = "https://api.bybit.com/v2/public/kline/list"
+    url = "https://api.bybit.com/public/linear/kline"  # Исправленный эндпоинт
     params = {
-        'symbol': symbol,  # Символ криптовалюты (например, 'BTCUSD')
+        'symbol': symbol,  # Символ криптовалюты (например, 'BTCUSDT')
         'interval': interval,  # Интервал, например '1' для 1 минуты, '3' для 3 минут и т.д.
         'limit': limit,  # Максимальное количество записей
     }
@@ -119,8 +119,8 @@ def analyze_symbols(symbols, state):
 def main():
     state = load_state()
     
-    # Здесь вручную указываем монеты для анализа (например, BTCUSD, ETHUSD)
-    symbols = ['BTCUSD', 'ETHUSD', 'BNBUSD', 'ADAUSD']  # Пример монет, которые хочешь анализировать
+    # Здесь вручную указываем монеты для анализа (например, BTCUSDT, ETHUSDT)
+    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT']  # Пример монет, которые хочешь анализировать
     analyze_symbols(symbols, state)
 
 if __name__ == "__main__":
