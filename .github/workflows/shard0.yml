@@ -23,16 +23,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-
-    
-        
     - name: Run Shard0 analysis
-      run: python main_shard0.py
+      run: python main_shard0.py  # Ваш скрипт
       env:
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}  # Получаем ID чата
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}  # Получаем токен из секретов
         CRYPTOCOMPARE_API_KEY: ${{ secrets.CRYPTOCOMPARE_API_KEY }}  # Получаем API ключ
-        CHAT_ID: ${{ secrets.CHAT_ID }}  # Получаем ID чата
-      run: |
-        python main_shard0.py  # Ваш скрипт
-
