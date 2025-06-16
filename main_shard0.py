@@ -32,8 +32,8 @@ def send_message(message):
         print(f"Ошибка отправки сообщения: {e}")
 
 # Выполнение безопасного запроса с повторными попытками
-def safe_request(url, params, retries=3, delay=5):
-    """Выполняет запрос с попытками и задержкой между ними."""
+def safe_request(url, params, retries=3, delay=5, backoff=2):
+    """Выполняет запрос с увеличением времени задержки при ошибке 429."""
     for attempt in range(retries):
         try:
             response = requests.get(url, params=params)
@@ -43,7 +43,8 @@ def safe_request(url, params, retries=3, delay=5):
             print(f"Ошибка при запросе: {e}")
             if attempt < retries - 1:
                 print(f"Попытка {attempt + 1} из {retries}, повтор через {delay} секунд.")
-                time.sleep(delay)  # Задержка перед повтором
+                time.sleep(delay)
+                delay *= backoff  # Увеличиваем задержку после каждой попытки
             else:
                 return None  # Если все попытки не удались, возвращаем None
 
@@ -61,7 +62,7 @@ def get_top_400_coins():
             'page': page,     # Указываем страницу
         }
         
-        data = safe_request(url, params)
+        data = safe_request(url, params, retries=3, delay=2, backoff=2)
         
         if data:
             coins.extend([coin['id'] for coin in data])
@@ -83,7 +84,7 @@ def get_top_400_coins():
 def get_coin_data(symbol):
     url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
     params = {"vs_currency": "usd", "days": "30", "interval": "daily"}
-    data = safe_request(url, params)
+    data = safe_request(url, params, retries=3, delay=5, backoff=2)
     
     if data is None or 'prices' not in data:
         print(f"Ошибка: Нет данных для монеты {symbol}")
