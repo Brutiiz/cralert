@@ -14,26 +14,31 @@ def load_state():
     try:
         with open(STATE_FILE, "r") as f:
             return json.load(f)
-    except:
+    except Exception as e:
+        print(f"Ошибка при загрузке состояния: {e}")
         return {}
 
 # Сохранение состояния уведомлений
 def save_state(state):
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f)
+    try:
+        with open(STATE_FILE, "w") as f:
+            json.dump(state, f)
+    except Exception as e:
+        print(f"Ошибка при сохранении состояния: {e}")
 
 # Уведомление в Telegram
 def send_message(message):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message}
     try:
-        requests.post(url, json=payload)
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        payload = {"chat_id": CHAT_ID, "text": message}
+        response = requests.post(url, json=payload)
+        response.raise_for_status()  # Проверка успешности запроса
+        print("Сообщение отправлено успешно!")
     except Exception as e:
         print(f"Ошибка отправки сообщения: {e}")
 
 # Выполнение безопасного запроса с повторными попытками
 def safe_request(url, params, retries=3, delay=5, backoff=2):
-    """Выполняет запрос с увеличением времени задержки при ошибке 429."""
     for attempt in range(retries):
         try:
             response = requests.get(url, params=params)
@@ -48,13 +53,13 @@ def safe_request(url, params, retries=3, delay=5, backoff=2):
             else:
                 return None  # Если все попытки не удались, возвращаем None
 
-# Получение топ-400 монет с CryptoCompare
-def get_top_400_coins():
+# Получение топ-310 монет с CryptoCompare
+def get_top_310_coins():
     url = "https://min-api.cryptocompare.com/data/top/totalvolfull"
     coins = []
     page = 1
 
-    while len(coins) < 400:
+    while len(coins) < 310:  # Изменено на 310
         params = {
             'apiKey': CRYPTOCOMPARE_API_KEY,
             'limit': 100,  # Максимум 100 монет на страницу
@@ -81,10 +86,10 @@ def get_top_400_coins():
             break
         
         # Задержка между запросами для предотвращения блокировки
-        print(f"Загружено {len(coins)} монет из 400, задержка на 2 секунды...")
+        print(f"Загружено {len(coins)} монет из 310, задержка на 2 секунды...")
         time.sleep(2)
 
-    return coins[:400]
+    return coins[:310]  # Ограничиваем 310 монетами
 
 # Получение данных для монеты с CryptoCompare
 def get_coin_data(symbol):
@@ -154,17 +159,25 @@ def analyze_symbols(symbols, state):
     if matched:
         msg = "📉 Монеты КАСНУЛИСЬ Lower 2:\n" + "\n".join(matched)
         send_message(msg)
+    else:
+        print("Нет монет, которые достигли уровня Lower 2.")
+
     if near:
         msg = "📡 Почти дошли до Lower 2:\n" + "\n".join(near)
         send_message(msg)
+    else:
+        print("Нет монет, которые почти достигли уровня Lower 2.")
 
 def main():
     state = load_state()
     
-    # Получаем список топ-400 монет
-    symbols = get_top_400_coins()  # Получаем топ 400 монет по капитализации
+    # Получаем список топ-310 монет
+    symbols = get_top_310_coins()  # Получаем топ 310 монет по капитализации
     if symbols:
         analyze_symbols(symbols, state)  # Анализируем монеты
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"Ошибка во время выполнения программы: {e}")
