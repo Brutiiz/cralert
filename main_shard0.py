@@ -4,12 +4,15 @@ import json
 import time
 import os
 from datetime import datetime
+from dotenv import load_dotenv
 
-# Укажите ваш Telegram-бот токен
-TELEGRAM_TOKEN = "8006093547:AAH_4uAYRZNmt6g4x8HHitBHETKu8P23haE"  # Замените на ваш токен
+# Загружаем переменные окружения из .env файла
+load_dotenv()
 
-CRYPTOCOMPARE_API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# Получаем Telegram токен и другие данные из переменных окружения
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Токен Telegram бота
+CRYPTOCOMPARE_API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")  # API ключ для CryptoCompare
+CHAT_ID = os.getenv("CHAT_ID")  # ID чата для отправки сообщений в Telegram
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
 
 # Загрузка состояния уведомлений
