@@ -65,8 +65,12 @@ def get_top_400_coins():
         data = safe_request(url, params, retries=3, delay=2, backoff=2)
         
         if data and 'Data' in data:
-            # Фильтруем монеты по рыночной капитализации
-            filtered_coins = [coin['CoinInfo']['Name'] for coin in data['Data'] if coin['RAW']['USD']['MKTCAP'] is not None]
+            # Фильтруем монеты по рыночной капитализации, проверяя наличие нужных ключей
+            filtered_coins = [
+                coin['CoinInfo']['Name'] 
+                for coin in data['Data'] 
+                if 'RAW' in coin and 'USD' in coin['RAW'] and 'MKTCAP' in coin['RAW']['USD'] and coin['RAW']['USD']['MKTCAP'] is not None
+            ]
             coins.extend(filtered_coins)
         else:
             print("Ошибка при получении данных.")
