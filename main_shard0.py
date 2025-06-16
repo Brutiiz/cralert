@@ -8,8 +8,6 @@ from datetime import datetime
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
-BYBIT_API_KEY = os.getenv("BYBIT_API_KEY")  # Ваш API-ключ для Bybit
-BYBIT_API_SECRET = os.getenv("BYBIT_API_SECRET")  # Ваш API-ключ Secret для Bybit
 
 # Уведомление в Telegram
 def send_message(message):
@@ -33,36 +31,61 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
-# Получение исторических данных с Bybit
-def get_bybit_data(symbol, api_key, interval='1', limit=1000):
-    url = "https://api.bybit.com/public/linear/kline"
+# Получение топ-400 монет с CoinGecko
+def get_top_400():
+    url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {
-        'symbol': symbol,  # Например 'BTCUSDT'
-        'interval': interval,  # интервал, например '1' (1 минута)
-        'limit': limit,  # максимум 1000 записей
-        'api_key': api_key  # Ваш API-ключ
+        'vs_currency': 'usd',
+        'order': 'market_cap_desc',
+        'per_page': 400,  # Получаем топ 400 монет
+        'page': 1
     }
-
+    
     try:
         response = requests.get(url, params=params)
-        # Логируем все ответы
-        print(f"Ответ от Bybit: {response.status_code}, {response.text}")
-        
-        # Проверяем статус ответа
         response.raise_for_status()
         data = response.json()
 
-        if 'result' in data:
-            return data['result']
+        if data:
+            symbols = [coin['id'] for coin in data]
+            print(f"Полученные монеты: {symbols}")
+            return symbols
         else:
-            print(f"Ошибка при запросе для {symbol}: {data}")
+            print("Ошибка: Не удается получить данные о монетах.")
+            return []
+    except requests.exceptions.RequestException as e:
+        print(f"Ошибка при запросе для топ-400: {e}")
+        return []
+
+# Получение исторических данных с CoinGecko для анализа
+def get_coingecko_data(symbol, currency="usd", days=30):
+    url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
+    params = {
+        'vs_currency': currency,
+        'days': days,
+        'interval': 'daily'
+    }
+    
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if 'prices' in data:
+            df = pd.DataFrame(data['prices'], columns=["timestamp", "price"])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            df.set_index('timestamp', inplace=True)
+            df['price'] = df['price'].astype(float)
+            return df
+        else:
+            print(f"Ошибка получения данных для {symbol}")
             return None
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при запросе для {symbol}: {e}")
         return None
 
 # Анализ монет
-def analyze_symbols(symbols, state, api_key):
+def analyze_symbols(symbols, state):
     today = str(datetime.utcnow().date())
     matched, near = [], []
 
@@ -71,23 +94,17 @@ def analyze_symbols(symbols, state, api_key):
     for symbol in symbols:
         print(f"Обрабатывается монета: {symbol}")
         
-        # Получаем данные для монеты с Bybit
-        data = get_bybit_data(symbol, api_key)
-        if not data or len(data) < 12:
+        # Получаем данные для монеты с CoinGecko
+        df = get_coingecko_data(symbol)
+        if df is None or len(df) < 12:
             print(f"Нет данных или недостаточно данных для монеты {symbol}")
             continue
         
-        # Преобразуем данные в DataFrame
-        df = pd.DataFrame(data)
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
-        df.set_index('timestamp', inplace=True)
-        df['close'] = pd.to_numeric(df['close'])
-        
         # Расчет 12-дневной SMA
-        df["sma12"] = df["close"].rolling(12).mean()  # Расчет 12-дневной SMA
+        df["sma12"] = df["price"].rolling(12).mean()  # Расчет 12-дневной SMA
         df["lower2"] = df["sma12"] * (1 - 0.2558)  # Ожидаемое снижение на 25.58%
         
-        price = df["close"].iloc[-1]
+        price = df["price"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
         diff_percent = (price - lower2) / lower2 * 100
         print(f"{symbol} цена: {price:.2f} | Lower2: {lower2:.2f} | Δ: {diff_percent:.2f}%")
@@ -120,9 +137,10 @@ def analyze_symbols(symbols, state, api_key):
 def main():
     state = load_state()
     
-    # Здесь вручную указываем монеты для анализа (например, BTCUSDT, ETHUSDT)
-    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT']  # Пример монет, которые хочешь анализировать
-    analyze_symbols(symbols, state, BYBIT_API_KEY)
+    # Получаем список топ-400 монет с CoinGecko
+    symbols = get_top_400()  # Получаем топ 400 монет
+    if symbols:
+        analyze_symbols(symbols, state)  # Анализируем монеты
 
 if __name__ == "__main__":
     main()
