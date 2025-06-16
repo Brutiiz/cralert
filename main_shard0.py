@@ -8,6 +8,7 @@ from datetime import datetime
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
+API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")  # Ваш API-ключ для CryptoCompare
 
 # Уведомление в Telegram
 def send_message(message):
@@ -31,61 +32,74 @@ def save_state(state):
     with open(STATE_FILE, "w") as f:
         json.dump(state, f)
 
-# Получение топ-400 монет с CoinGecko
-def get_top_400():
-    url = "https://api.coingecko.com/api/v3/coins/markets"
+# Получение топ-400 монет с CryptoCompare (с учетом постраничного запроса)
+def get_top_400(api_key):
+    url = "https://min-api.cryptocompare.com/data/top/mktcapfull"
     params = {
-        'vs_currency': 'usd',
-        'order': 'market_cap_desc',
-        'per_page': 400,  # Получаем топ 400 монет
-        'page': 1
+        'limit': 100,  # Получаем 100 монет за один запрос
+        'tsym': 'USD',  # По капитализации в долларах
+        'api_key': api_key
     }
-    
+
+    all_symbols = []
+    page = 1
+    while len(all_symbols) < 400:  # Пытаемся получить топ 400
+        params['page'] = page
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+            if "Data" in data:
+                symbols = [coin['CoinInfo']['Name'] for coin in data['Data']]
+                all_symbols.extend(symbols)
+                print(f"Полученные монеты для страницы {page}: {symbols}")
+            else:
+                print("Нет данных.")
+            page += 1
+            time.sleep(5)  # Задержка между запросами
+        except requests.exceptions.RequestException as e:
+            print(f"Ошибка при запросе: {e}")
+            break
+
+    return all_symbols[:400]  # Возвращаем только первые 400 монет
+
+# Получение данных с CryptoCompare для анализа
+def get_cryptocompare_data(symbol, api_key, currency="USD", limit=2000):
+    url = "https://min-api.cryptocompare.com/data/v2/histoday"
+    params = {
+        'fsym': symbol,  # Символ криптовалюты (например, 'BTC')
+        'tsym': currency,  # Валюта для конвертации (например, 'USD')
+        'limit': limit,  # Максимальное количество записей
+        'api_key': api_key  # Ваш API-ключ
+    }
+
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
         data = response.json()
 
-        if data:
-            symbols = [coin['id'] for coin in data]
-            print(f"Полученные монеты: {symbols}")
-            return symbols
-        else:
-            print("Ошибка: Не удается получить данные о монетах.")
-            return []
-    except requests.exceptions.RequestException as e:
-        print(f"Ошибка при запросе для топ-400: {e}")
-        return []
-
-# Получение исторических данных с CoinGecko для анализа
-def get_coingecko_data(symbol, currency="usd", days=30):
-    url = f"https://api.coingecko.com/api/v3/coins/{symbol}/market_chart"
-    params = {
-        'vs_currency': currency,
-        'days': days,
-        'interval': 'daily'
-    }
-    
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-
-        if 'prices' in data:
-            df = pd.DataFrame(data['prices'], columns=["timestamp", "price"])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            df.set_index('timestamp', inplace=True)
-            df['price'] = df['price'].astype(float)
-            return df
-        else:
-            print(f"Ошибка получения данных для {symbol}")
+        if data['Response'] == 'Error':
+            print(f"Ошибка: {data['Message']}")
             return None
+
+        # Преобразуем данные в DataFrame для дальнейшего анализа
+        prices = []
+        for item in data['Data']['Data']:
+            prices.append({
+                'timestamp': pd.to_datetime(item['time'], unit='s'),
+                'close': item['close']
+            })
+
+        df = pd.DataFrame(prices)
+        return df
+
     except requests.exceptions.RequestException as e:
         print(f"Ошибка при запросе для {symbol}: {e}")
         return None
 
 # Анализ монет
-def analyze_symbols(symbols, state):
+def analyze_symbols(symbols, state, api_key):
     today = str(datetime.utcnow().date())
     matched, near = [], []
 
@@ -94,17 +108,17 @@ def analyze_symbols(symbols, state):
     for symbol in symbols:
         print(f"Обрабатывается монета: {symbol}")
         
-        # Получаем данные для монеты с CoinGecko
-        df = get_coingecko_data(symbol)
+        # Получаем данные для монеты с CryptoCompare
+        df = get_cryptocompare_data(symbol, api_key)
         if df is None or len(df) < 12:
             print(f"Нет данных или недостаточно данных для монеты {symbol}")
             continue
         
         # Расчет 12-дневной SMA
-        df["sma12"] = df["price"].rolling(12).mean()  # Расчет 12-дневной SMA
+        df["sma12"] = df["close"].rolling(12).mean()  # Расчет 12-дневной SMA
         df["lower2"] = df["sma12"] * (1 - 0.2558)  # Ожидаемое снижение на 25.58%
         
-        price = df["price"].iloc[-1]
+        price = df["close"].iloc[-1]
         lower2 = df["lower2"].iloc[-1]
         diff_percent = (price - lower2) / lower2 * 100
         print(f"{symbol} цена: {price:.2f} | Lower2: {lower2:.2f} | Δ: {diff_percent:.2f}%")
@@ -137,10 +151,10 @@ def analyze_symbols(symbols, state):
 def main():
     state = load_state()
     
-    # Получаем список топ-400 монет с CoinGecko
-    symbols = get_top_400()  # Получаем топ 400 монет
+    # Получаем список топ-400 монет
+    symbols = get_top_400(API_KEY)  # Получаем топ 400 монет по капитализации
     if symbols:
-        analyze_symbols(symbols, state)  # Анализируем монеты
+        analyze_symbols(symbols, state, API_KEY)  # Анализируем монеты
 
 if __name__ == "__main__":
     main()
