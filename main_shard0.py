@@ -8,7 +8,7 @@ from datetime import datetime
 # Получаем Telegram токен и другие данные из переменных окружения
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Токен Telegram бота
 CRYPTOCOMPARE_API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")  # API ключ для CryptoCompare
-CHAT_ID = os.getenv("CHAT_ID")  # ID чата для отправки сообщений в Telegram
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # ID чата для отправки сообщений в Telegram
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
 
 # Загрузка состояния уведомлений
