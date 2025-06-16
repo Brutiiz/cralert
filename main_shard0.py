@@ -95,6 +95,28 @@ def get_top_310_coins():
 
     return coins[:310]  # Ограничиваем 310 монетами
 
+# Получение данных для монеты с CryptoCompare
+def get_coin_data(symbol):
+    url = f"https://min-api.cryptocompare.com/data/v2/histoday"
+    params = {
+        "apiKey": CRYPTOCOMPARE_API_KEY,
+        "fsym": symbol,
+        "tsym": "USD",
+        "limit": 30,  # Данные за последние 30 дней
+        "aggregate": 1,
+    }
+    data = safe_request(url, params, retries=3, delay=5, backoff=2)
+    
+    if data is None or 'Data' not in data:
+        print(f"Ошибка: Нет данных для монеты {symbol}")
+        return None
+    
+    df = pd.DataFrame(data["Data"]["Data"], columns=["time", "close"])
+    df["close"] = df["close"].astype(float)
+    df["timestamp"] = pd.to_datetime(df["time"], unit="s")
+    df.set_index("timestamp", inplace=True)
+    return df
+
 # Анализ монет
 def analyze_symbols(symbols, state):
     today = str(datetime.utcnow().date())
