@@ -106,4 +106,23 @@ def analyze_symbols(symbols, state, api_key):
 
     save_state(state)
 
-    print(f"Обработано {len(matched)} монет с до
+    print(f"Обработано {len(matched)} монет с достижением уровня")
+    print(f"Обработано {len(near)} монет, которые почти достигли уровня")
+
+    # Отправляем уведомления
+    if matched:
+        msg = "📉 Монеты КАСНУЛИСЬ Lower 2:\n" + "\n".join(matched)
+        send_message(msg)
+    if near:
+        msg = "📡 Почти дошли до Lower 2:\n" + "\n".join(near)
+        send_message(msg)
+
+def main():
+    state = load_state()
+    
+    # Здесь вручную указываем монеты для анализа (например, BTCUSDT, ETHUSDT)
+    symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT']  # Пример монет, которые хочешь анализировать
+    analyze_symbols(symbols, state, BYBIT_API_KEY)
+
+if __name__ == "__main__":
+    main()
