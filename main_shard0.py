@@ -55,17 +55,6 @@ def safe_request(url, params, retries=3, delay=5, backoff=2):
             else:
                 return None  # Если все попытки не удались, возвращаем None
 
-# Получение данных о монетах с Bybit
-def get_top_150_coins():
-    # Для анализа будем использовать популярные монеты на USDT, которые торгуются на Bybit
-    # Это не идеальный способ, так как API Bybit не предоставляет данных по капитализации напрямую,
-    # но мы можем выбрать те монеты, которые торгуются активно.
-    popular_symbols = [
-        "BTC", "ETH", "XRP", "LTC", "ADA", "DOGE", "SOL", "DOT", "MATIC", "BCH", 
-        "AVAX", "ATOM", "LINK", "SHIB", "UNI", "TRX", "FTM", "AAVE", "SUSHI", "BAL"
-    ]
-    return popular_symbols  # Вернем список популярных монет
-
 # Получение данных для монеты с Bybit
 def get_coin_data(symbol):
     url = f"https://api.bybit.com/v2/public/kline/list"
