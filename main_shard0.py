@@ -7,7 +7,6 @@ from datetime import datetime
 
 # Получаем Telegram токен и другие данные из переменных окружения
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Токен Telegram бота
-CRYPTOCOMPARE_API_KEY = os.getenv("CRYPTOCOMPARE_API_KEY")  # API ключ для CryptoCompare
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # ID чата для отправки сообщений в Telegram
 STATE_FILE = "alert_state.json"  # Для хранения состояния уведомлений
 
@@ -56,63 +55,34 @@ def safe_request(url, params, retries=3, delay=5, backoff=2):
             else:
                 return None  # Если все попытки не удались, возвращаем None
 
-# Получение топ-310 монет с CryptoCompare
-def get_top_310_coins():
-    url = "https://min-api.cryptocompare.com/data/top/totalvolfull"
-    coins = []
-    page = 1
+# Получение данных о монетах с Bybit
+def get_top_150_coins():
+    # Для анализа будем использовать популярные монеты на USDT, которые торгуются на Bybit
+    # Это не идеальный способ, так как API Bybit не предоставляет данных по капитализации напрямую,
+    # но мы можем выбрать те монеты, которые торгуются активно.
+    popular_symbols = [
+        "BTC", "ETH", "XRP", "LTC", "ADA", "DOGE", "SOL", "DOT", "MATIC", "BCH", 
+        "AVAX", "ATOM", "LINK", "SHIB", "UNI", "TRX", "FTM", "AAVE", "SUSHI", "BAL"
+    ]
+    return popular_symbols  # Вернем список популярных монет
 
-    while len(coins) < 310:  # Изменено на 310
-        params = {
-            'apiKey': CRYPTOCOMPARE_API_KEY,
-            'limit': 100,  # Максимум 100 монет на страницу
-            'page': page,   # Указываем страницу
-            'tsym': 'USD',  # Выводим по отношению к USD
-        }
-
-        data = safe_request(url, params, retries=3, delay=2, backoff=2)
-
-        if data and 'Data' in data:
-            # Фильтруем монеты по рыночной капитализации, проверяя наличие нужных ключей
-            filtered_coins = [
-                coin['CoinInfo']['Name']
-                for coin in data['Data']
-                if 'RAW' in coin and 'USD' in coin['RAW'] and 'MKTCAP' in coin['RAW']['USD'] and coin['RAW']['USD']['MKTCAP'] is not None
-            ]
-            coins.extend(filtered_coins)
-        else:
-            print("Ошибка при получении данных.")
-            break
-
-        page += 1
-        if len(data['Data']) < 100:  # Если на странице меньше 100 монет, то завершить
-            break
-
-        # Задержка между запросами для предотвращения блокировки
-        print(f"Загружено {len(coins)} монет из 310, задержка на 2 секунды...")
-        time.sleep(2)
-
-    return coins[:310]  # Ограничиваем 310 монетами
-
-# Получение данных для монеты с CryptoCompare
+# Получение данных для монеты с Bybit
 def get_coin_data(symbol):
-    url = f"https://min-api.cryptocompare.com/data/v2/histoday"
+    url = f"https://api.bybit.com/v2/public/kline/list"
     params = {
-        "apiKey": CRYPTOCOMPARE_API_KEY,
-        "fsym": symbol,
-        "tsym": "USD",
+        "symbol": f"{symbol}USDT",  # Формируем запрос с символом монеты
+        "interval": "1d",  # Используем дневной интервал
         "limit": 30,  # Данные за последние 30 дней
-        "aggregate": 1,
     }
     data = safe_request(url, params, retries=3, delay=5, backoff=2)
     
-    if data is None or 'Data' not in data:
+    if data is None or 'result' not in data:
         print(f"Ошибка: Нет данных для монеты {symbol}")
         return None
     
-    df = pd.DataFrame(data["Data"]["Data"], columns=["time", "close"])
+    df = pd.DataFrame(data["result"], columns=["timestamp", "open", "high", "low", "close", "volume", "open_time", "close_time", "status", "high_time", "low_time", "volume_30d", "market_cap", "turnover"])
     df["close"] = df["close"].astype(float)
-    df["timestamp"] = pd.to_datetime(df["time"], unit="s")
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
     df.set_index("timestamp", inplace=True)
     return df
 
@@ -126,7 +96,7 @@ def analyze_symbols(symbols, state):
     for symbol in symbols:
         print(f"Обрабатывается монета: {symbol}")
 
-        # Получаем данные для монеты с CryptoCompare
+        # Получаем данные для монеты с Bybit
         df = get_coin_data(symbol)
         if df is None or len(df) < 12:
             print(f"Нет данных или недостаточно данных для монеты {symbol}")
@@ -153,6 +123,9 @@ def analyze_symbols(symbols, state):
         elif 0 < diff_percent <= 3:  # Например, от -22.58% до -25.58% = приближение
             near.append(symbol)
 
+        # Задержка после обработки каждой монеты
+        time.sleep(1)  # Добавляем 1-секундную задержку между запросами
+
     save_state(state)
 
     print(f"Обработано {len(matched)} монет с достижением уровня")
@@ -174,8 +147,8 @@ def analyze_symbols(symbols, state):
 def main():
     state = load_state()
 
-    # Получаем список топ-310 монет
-    symbols = get_top_310_coins()  # Получаем топ 310 монет по капитализации
+    # Получаем список популярных монет для анализа
+    symbols = get_top_150_coins()  # Используем топ монет для анализа
     if symbols:
         analyze_symbols(symbols, state)  # Анализируем монеты
 
