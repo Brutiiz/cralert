@@ -75,6 +75,17 @@ def get_coin_data(symbol):
     df.set_index("timestamp", inplace=True)
     return df
 
+# Функция для получения списка популярных монет
+def get_top_150_coins():
+    # Для анализа будем использовать популярные монеты на USDT, которые торгуются на Bybit
+    # Это не идеальный способ, так как API Bybit не предоставляет данных по капитализации напрямую,
+    # но мы можем выбрать те монеты, которые торгуются активно.
+    popular_symbols = [
+        "BTC", "ETH", "XRP", "LTC", "ADA", "DOGE", "SOL", "DOT", "MATIC", "BCH", 
+        "AVAX", "ATOM", "LINK", "SHIB", "UNI", "TRX", "FTM", "AAVE", "SUSHI", "BAL"
+    ]
+    return popular_symbols  # Вернем список популярных монет
+
 # Анализ монет
 def analyze_symbols(symbols, state):
     today = str(datetime.utcnow().date())
