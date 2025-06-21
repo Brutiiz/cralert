@@ -1,45 +1,57 @@
 import requests
 import pandas as pd
+from time import sleep
+import hashlib
 import time
+import json
 
-# Функция для получения данных о свечах с Bybit
+# Ваши данные для авторизации
+API_KEY = "your_api_key"
+API_SECRET = "your_api_secret"
+
+# Генерация подписи для запроса с использованием вашего API ключа и секрета
+def generate_signature(api_key, api_secret, params):
+    query_string = '&'.join([f"{key}={value}" for key, value in sorted(params.items())])
+    signature = hashlib.sha256((query_string + f"&api_secret={api_secret}").encode('utf-8')).hexdigest()
+    return signature
+
+# Получение данных для монеты с Bybit с авторизацией
 def get_coin_data(symbol):
-    # URL для запроса в тестовой сети
-    url = "https://api-testnet.bybit.com/v2/public/kline/list"
-    
-    # Параметры запроса
+    url = "https://api.bybit.com/v2/public/kline/list"
+
     params = {
+        "api_key": API_KEY,
         "symbol": f"{symbol}USDT",  # Символ монеты
-        "interval": "1d",  # Интервал 1 день (можно использовать другие: 1m, 5m, 15m, 1h и т.д.)
-        "limit": 30  # Данные за последние 30 дней
+        "interval": "1d",  # Интервал 1 день
+        "limit": 30,  # Данные за последние 30 дней
+        "timestamp": int(time.time() * 1000)  # Текущее время в миллисекундах
     }
 
-    # Отправка GET-запроса
+    # Генерация подписи
+    params['sign'] = generate_signature(API_KEY, API_SECRET, params)
+
+    # Отправка запроса
     response = requests.get(url, params=params)
     
-    # Проверяем, успешен ли запрос
     if response.status_code != 200:
         print(f"Ошибка при запросе: {response.status_code} - {response.text}")
         return None
 
-    # Получение данных из ответа
     data = response.json()
-
-    # Проверяем наличие данных в ответе
+    
+    # Проверка на наличие данных в ответе
     if "result" not in data:
         print("Ошибка: Не получены данные о свечах.")
         return None
 
     # Преобразование данных в DataFrame
     df = pd.DataFrame(data['result'])
-
-    # Преобразуем временные метки в читаемый формат
+    
+    # Преобразование временной метки в читаемый формат
     df['timestamp'] = pd.to_datetime(df['open_time'], unit='s')
-
-    # Устанавливаем индекс как временную метку
     df.set_index('timestamp', inplace=True)
 
-    # Убираем лишние столбцы, чтобы оставить только полезные
+    # Оставляем только нужные столбцы
     df = df[['open', 'high', 'low', 'close', 'volume']]
 
     return df
@@ -56,7 +68,7 @@ def analyze_symbols(symbols):
 
         # Пример вывода последних данных о свечах
         print(f"Последние данные для {symbol}:\n", df.tail(1))
-        time.sleep(1)  # Задержка между запросами, чтобы избежать блокировки
+        sleep(1)  # Задержка между запросами, чтобы избежать блокировки
 
 # Список популярных монет для анализа
 symbols = ["BTC", "ETH", "XRP", "LTC", "ADA", "DOGE", "SOL", "DOT", "MATIC", "BCH"]
