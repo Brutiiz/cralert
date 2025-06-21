@@ -1,10 +1,10 @@
 import ccxt
 import time
 
-# Создаем объект для работы с Coinbase Pro через CCXT
-exchange = ccxt.coinbasepro()
+# Создаем объект для работы с Coinbase через CCXT
+exchange = ccxt.coinbase()
 
-# Получаем данные о свечах для монеты BTC/USDT на Coinbase Pro
+# Получаем данные о свечах для монеты BTC/USD на Coinbase Pro
 def get_coin_data(symbol):
     try:
         # Получаем данные о свечах за 1 день
@@ -14,8 +14,8 @@ def get_coin_data(symbol):
         print(f"Ошибка при получении данных: {e}")
         return None
 
-# Пример получения данных для BTC/USDT
-symbol = "BTC/USD"  # Для Coinbase Pro используем "BTC/USD"
+# Пример получения данных для BTC/USD
+symbol = "BTC/USD"  # Для Coinbase используем "BTC/USD"
 candles = get_coin_data(symbol)
 
 if candles:
