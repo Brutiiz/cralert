@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 import time
 import os
+import json  # Добавлен импорт json
 from datetime import datetime
 
 # Получаем Telegram токен и другие данные из переменных окружения
@@ -14,7 +15,7 @@ STATE_FILE = "alert_state.json"  # Для хранения состояния у
 def load_state():
     try:
         with open(STATE_FILE, "r") as f:
-            return json.load(f)
+            return json.load(f)  # Теперь json импортирован
     except Exception as e:
         print(f"Ошибка при загрузке состояния: {e}")
         return {}
@@ -23,7 +24,7 @@ def load_state():
 def save_state(state):
     try:
         with open(STATE_FILE, "w") as f:
-            json.dump(state, f)
+            json.dump(state, f)  # Теперь json импортирован
     except Exception as e:
         print(f"Ошибка при сохранении состояния: {e}")
 
