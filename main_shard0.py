@@ -1,32 +1,31 @@
-import requests
-import time
+import websocket
+import json
 
-# Пример использования API Bybit с задержками для предотвращения перегрузки
-API_KEY = 'your_api_key'
-API_SECRET = 'your_api_secret'
+# WebSocket URL для получения данных о свечах
+url = "wss://stream.bybit.com/realtime"
 
-# Функция для получения данных с Bybit
-def get_coin_data(symbol):
-    url = "https://api.bybit.com/v2/public/kline/list"
-    params = {
-        "api_key": API_KEY,
-        "symbol": f"{symbol}USDT", 
-        "interval": "1d", 
-        "limit": 30,
-        "timestamp": int(time.time() * 1000)
-    }
-    response = requests.get(url, params=params)
-    data = response.json()
-    if data["ret_code"] == 0:
-        return data['result']
-    else:
-        print(f"Ошибка: {data}")
-        return None
+# Подключение к WebSocket для получения данных о свечах
+def on_message(ws, message):
+    data = json.loads(message)
+    if "topic" in data and data["topic"] == "kline":
+        print(f"Получены данные о свечах: {data}")
 
-symbols = ['BTC', 'ETH', 'XRP', 'ADA']  # Пример списка монет
+def on_error(ws, error):
+    print(f"Ошибка: {error}")
 
-for symbol in symbols:
-    data = get_coin_data(symbol)
-    if data:
-        print(f"Данные для {symbol}: {data}")
-    time.sleep(1)  # Задержка, чтобы избежать перегрузки API
+def on_close(ws, close_status_code, close_msg):
+    print("Закрыто соединение")
+
+def on_open(ws):
+    # Подписка на канделябры для BTC/USDT
+    ws.send(json.dumps({
+        "op": "subscribe",
+        "args": ["kline.BTCUSDT.1m"]  # Тема для 1-минутных свечей
+    }))
+
+# Установка WebSocket
+ws = websocket.WebSocketApp(url, on_message=on_message, on_error=on_error, on_close=on_close)
+ws.on_open = on_open
+
+# Запуск WebSocket
+ws.run_forever()
