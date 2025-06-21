@@ -1,9 +1,7 @@
 import requests
 import pandas as pd
-from time import sleep
-import hashlib
 import time
-import json
+import hashlib
 
 # Ваши данные для авторизации
 API_KEY = "your_api_key"
@@ -17,7 +15,8 @@ def generate_signature(api_key, api_secret, params):
 
 # Получение данных для монеты с Bybit с авторизацией
 def get_coin_data(symbol):
-    url = "https://api.bybit.com/v2/public/kline/list"
+    # URL для тестовой сети
+    url = "https://api-testnet.bybit.com/v2/public/kline/list"
 
     params = {
         "api_key": API_KEY,
@@ -68,7 +67,7 @@ def analyze_symbols(symbols):
 
         # Пример вывода последних данных о свечах
         print(f"Последние данные для {symbol}:\n", df.tail(1))
-        sleep(1)  # Задержка между запросами, чтобы избежать блокировки
+        time.sleep(1)  # Задержка между запросами, чтобы избежать блокировки
 
 # Список популярных монет для анализа
 symbols = ["BTC", "ETH", "XRP", "LTC", "ADA", "DOGE", "SOL", "DOT", "MATIC", "BCH"]
