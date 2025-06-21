@@ -1,6 +1,7 @@
 requests
 pandas
 numpy
-websocket-client
+tradingview-ta
+ccxt
 
 
