@@ -4,8 +4,8 @@ import time
 
 # Функция для получения данных о свечах с Bybit
 def get_coin_data(symbol):
-    # URL для запроса
-    url = "https://api.bybit.com/v2/public/kline/list"
+    # URL для запроса в тестовой сети
+    url = "https://api-testnet.bybit.com/v2/public/kline/list"
     
     # Параметры запроса
     params = {
