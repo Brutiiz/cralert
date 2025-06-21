@@ -46,22 +46,28 @@ def get_coin_data(symbol):
         "limit": 30,  # Ограничение на 30 последних свечей
     }
     
-    response = requests.get(url, params=params)
+    retries = 5  # Количество попыток
+    delay = 5  # Задержка между попытками (в секундах)
     
-    if response.status_code != 200:
-        print(f"Ошибка при запросе: {response.status_code} - {response.text}")
-        return None
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, params=params, timeout=10)  # Устанавливаем тайм-аут
+            response.raise_for_status()  # Проверка на статус ответа
+            data = response.json()
 
-    data = response.json()
-    
-    if "result" not in data:
-        print("Ошибка: Не получены данные о свечах.")
-        return None
+            if "result" not in data:
+                print("Ошибка: Не получены данные о свечах.")
+                return None
 
-    df = pd.DataFrame(data['result'])
-    df['timestamp'] = pd.to_datetime(df['time'], unit='s')
-    df.set_index('timestamp', inplace=True)
-    return df
+            df = pd.DataFrame(data['result'])
+            df['timestamp'] = pd.to_datetime(df['time'], unit='s')
+            df.set_index('timestamp', inplace=True)
+            return df
+        except requests.exceptions.RequestException as e:
+            print(f"Ошибка при запросе (попытка {attempt + 1}): {e}")
+            time.sleep(delay)  # Задержка перед повторной попыткой
+    print("Превышено количество попыток запроса.")
+    return None
 
 # Анализ монет
 def analyze_symbols(symbols, state):
