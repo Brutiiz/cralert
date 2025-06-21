@@ -20,7 +20,7 @@ def on_open(ws):
     # Подписка на канделябры для BTC/USDT
     ws.send(json.dumps({
         "op": "subscribe",
-        "args": ["kline.BTCUSDT.1m"]  # Тема для 1-минутных свечей
+        "args": ["kline.BTCUSDT.1m"]  # Подписка на 1-минутные свечи для BTC/USDT
     }))
 
 # Установка WebSocket
