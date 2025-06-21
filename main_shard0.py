@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import time
 import os
-import json  # Добавлен импорт json
+import json
 from datetime import datetime
 
 # Получаем Telegram токен и другие данные из переменных окружения
@@ -15,7 +15,7 @@ STATE_FILE = "alert_state.json"  # Для хранения состояния у
 def load_state():
     try:
         with open(STATE_FILE, "r") as f:
-            return json.load(f)  # Теперь json импортирован
+            return json.load(f)
     except Exception as e:
         print(f"Ошибка при загрузке состояния: {e}")
         return {}
@@ -24,7 +24,7 @@ def load_state():
 def save_state(state):
     try:
         with open(STATE_FILE, "w") as f:
-            json.dump(state, f)  # Теперь json импортирован
+            json.dump(state, f)
     except Exception as e:
         print(f"Ошибка при сохранении состояния: {e}")
 
@@ -57,6 +57,10 @@ def analyze_symbols(symbols, state):
     today = str(datetime.utcnow().date())
     matched, near = [], []
 
+    # Статистика
+    matched_count = 0
+    near_count = 0
+
     for symbol in symbols:
         print(f"Обрабатывается монета: {symbol}")
 
@@ -77,6 +81,12 @@ def analyze_symbols(symbols, state):
         lower2 = df["lower2"].iloc[-1]
         diff_percent = (price - lower2) / lower2 * 100
 
+        # Печать информации о монете
+        print(f"Цена монеты {symbol}: {price:.2f}")
+        print(f"12-дневная SMA: {df['sma12'].iloc[-1]:.2f}")
+        print(f"Lower2 (25.58% ниже SMA): {lower2:.2f}")
+        print(f"Разница от Lower2: {diff_percent:.2f}%")
+
         # Если монета уже получила уведомление сегодня, пропускаем
         if state.get(symbol) == today:
             continue
@@ -84,13 +94,16 @@ def analyze_symbols(symbols, state):
         # Уведомление о достижении уровня
         if price <= lower2:
             matched.append(symbol)
+            matched_count += 1
             state[symbol] = today  # Обновляем состояние
         # Уведомление о приближении (почти достигли уровня)
         elif 0 < diff_percent <= 3:
             near.append(symbol)
+            near_count += 1
 
     save_state(state)
 
+    # Итоговые сообщения
     if matched:
         msg = "📉 Монеты, которые достигли Lower 2:\n" + "\n".join(matched)
         send_message(msg)
@@ -98,6 +111,11 @@ def analyze_symbols(symbols, state):
     if near:
         msg = "📡 Монеты, которые почти достигли Lower 2:\n" + "\n".join(near)
         send_message(msg)
+
+    # Итоговый отчет
+    summary = f"Итог:\n{matched_count} монет достигли уровня Lower2.\n{near_count} монет находятся рядом с уровнем Lower2."
+    print(summary)
+    send_message(summary)
 
 def main():
     state = load_state()
