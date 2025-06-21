@@ -81,11 +81,11 @@ def analyze_symbols(symbols, state):
         lower2 = df["lower2"].iloc[-1]
         diff_percent = (price - lower2) / lower2 * 100
 
-        # Печать информации о монете
-        print(f"Цена монеты {symbol}: {price:.2f}")
-        print(f"12-дневная SMA: {df['sma12'].iloc[-1]:.2f}")
-        print(f"Lower2 (25.58% ниже SMA): {lower2:.2f}")
-        print(f"Разница от Lower2: {diff_percent:.2f}%")
+        # Печать информации о монете с 10 знаками после запятой
+        print(f"Цена монеты {symbol}: {price:.10f}")
+        print(f"12-дневная SMA: {df['sma12'].iloc[-1]:.10f}")
+        print(f"Lower2 (25.58% ниже SMA): {lower2:.10f}")
+        print(f"Разница от Lower2: {diff_percent:.10f}%")
 
         # Если монета уже получила уведомление сегодня, пропускаем
         if state.get(symbol) == today:
@@ -115,16 +115,27 @@ def analyze_symbols(symbols, state):
     # Итоговый отчет
     summary = f"Итог:\n{matched_count} монет достигли уровня Lower2.\n{near_count} монет находятся рядом с уровнем Lower2."
     print(summary)
-    send_message(summary)
+    if matched_count > 0 or near_count > 0:
+        send_message(summary)
 
 def main():
     state = load_state()
-    
-    # Список самых популярных монет для теста
+
+    # Список монет для анализа
     symbols = [
-        "BTC/USD", "ETH/USD", "XRP/USD", "LTC/USD", "ADA/USD",
-        "DOGE/USD", "SOL/USD", "DOT/USD", "MATIC/USD", "BCH/USD"
+        "BCH/USD", "SUI/USD", "ADA/USD", "DOGE/USD", "SOL/USD", "XRP/USD", "ETH/USD",
+        "PEPE/USD", "UNI/USD", "DOT/USD", "HBAR/USD", "LTC/USD", "SHIB/USD", "AVAX/USD", "XLM/USD", "LINK/USD",
+        "POL/USD", "MANTLE/USD", "ONDO/USD", "ETC/USD", "NEAR/USD", "ICP/USD", "CRO/USD", "APT/USD", "TAO/USD", "AAVE/USD",
+        "ALGO/USD", "WLD/USD", "ATOM/USD", "FIL/USD", "FET/USD", "RENDER/USD", "ENA/USD", "VET/USD", "TRUMP/USD",
+        "STX/USD", "OP/USD", "TIA/USD", "BONK/USD", "INJ/USD", "QNT/USD", "FLR/USD", "SEI/USD", "ARB/USD",
+        "FLOKI/USD", "CAKE/USD", "JTO/USD", "IMX/USD", "IP/USD", "WIF/USD", "CRV/USD", "GRT/USD", "PAXG/USD", "FARTCOIN/USD",
+        "XTZ/USD", "PENGU/USD", "ZRO/USD", "PENDLE/USD", "JASMY/USD", "SAND/USD", "LDO/USD", "AERO/USD", "ZEC/USD", "ENS/USD",
+        "HNT/USD", "KAVA/USD", "COMP/USD", "XCN/USD", "APE/USD", "MANA/USD", "SURUP/USD", "FLOW/USD", "PYTH/USD", "CORECHAIN/USD",
+        "EIGEN/USD", "ETHFI/USD", "SUPER/USD", "RSR/USD", "AXS/USD", "AIOZ/USD", "STRK/USD", "AXL/USD", "MORPHO/USD", "EGLD/USD",
+        "DASH/USD", "TURBO/USD", "CVX/USD", "LPT/USD", "1INCH/USD", "AKT/USD", "POPCAT/USD", "GNO/USD", "AMP/USD", "ZK/USD", "MOG/USD", "CHZ/USD", "KAITO/USD", "ATH/USD",
+        "SAFE/USD", "PNUT/USD", "KSM/USD", "GLM/USD", "BERA/USD", "MINA/USD", "IOTX/USD"
     ]
+
     analyze_symbols(symbols, state)
 
 if __name__ == "__main__":
