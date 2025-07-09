@@ -133,7 +133,7 @@ def main():
         "HNT/USD", "KAVA/USD", "COMP/USD", "XCN/USD", "APE/USD", "MANA/USD", "SYRUP/USD", "FLOW/USD", "PYTH/USD", "CORECHAIN/USD",
         "EIGEN/USD", "ETHFI/USD", "SUPER/USD", "RSR/USD", "AXS/USD", "AIOZ/USD", "STRK/USD", "AXL/USD", "MORPHO/USD", "EGLD/USD",
         "DASH/USD", "TURBO/USD", "CVX/USD", "LPT/USD", "1INCH/USD", "AKT/USD", "POPCAT/USD", "GNO/USD", "AMP/USD", "ZK/USD", "MOG/USD", "CHZ/USD", "KAITO/USD", "ATH/USD",
-        "SAFE/USD", "PNUT/USD", "KSM/USD", "GLM/USD", "BERA/USD", "MINA/USD", "IOTX/USD"
+        "SAFE/USD", "PNUT/USD", "KSM/USD", "GLM/USD", "BERA/USD", "MINA/USD", "IOTX/USD", "XMR/USD"
     ]
 
     analyze_symbols(symbols, state)
