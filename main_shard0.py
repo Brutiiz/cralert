@@ -18,9 +18,11 @@ NEAR_PCT = 5.0                                    # «почти достигл�
 PREFERRED_QUOTES = ["USD", "USDT"]                # сначала USD, иначе USDT
 # =======================================================
 
-# Получаем API ключи из переменных окружения
+# Получаем API ключи для Crypto.com и Telegram
 API_KEY = os.getenv("BYBIT_API_KEY")
 API_SECRET = os.getenv("BYBIT_API_SECRET")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # ---------- утилиты состояния ----------
 def load_state():
@@ -52,12 +54,33 @@ def send_message(text: str):
     except Exception as e:
         print(f"Ошибка отправки сообщения: {e}")
 
-# ---------- источники данных ----------
+# ---------- Crypto.com API ----------
+def get_crypto_com_price(symbol):
+    """
+    Получение текущей цены с Crypto.com.
+    Symbol должен быть в формате 'BASE/QUOTE', например 'BTC/USD'.
+    """
+    url = f"https://api.crypto.com/v2/public/get-ticker"
+    params = {
+        "instrument_name": symbol.replace("/", "_")  # Заменяем слеш на подчеркивание
+    }
+    try:
+        response = requests.get(url, params=params)
+        data = response.json()
+        if data.get("result"):
+            price = data["result"]["last"]
+            return float(price)
+        else:
+            return None
+    except Exception as e:
+        print(f"Ошибка при получении данных с Crypto.com для {symbol}: {e}")
+        return None
+
+# ---------- Bybit API ----------
 def make_exchange():
-    # Подключаемся к Bybit с использованием API ключей
     ex = ccxt.bybit({
-        'apiKey': API_KEY,    # Ваш API ключ
-        'secret': API_SECRET, # Ваш секретный ключ
+        'apiKey': API_KEY,
+        'secret': API_SECRET,
         'enableRateLimit': True,
     })
     ex.load_markets()
@@ -65,8 +88,7 @@ def make_exchange():
 
 def pick_bybit_symbols(exchange):
     """
-    Возвращает словарь base -> выбранный инструмент (symbol) на Bybit.
-    Предпочтение парам в USD, иначе USDT. Только активные SPOT-рынки.
+    Возвращает список символов доступных на споте на Bybit.
     """
     markets = exchange.markets
     by_base = defaultdict(dict)  # base -> {quote: market}
@@ -108,6 +130,11 @@ def analyze_symbols(exchange, symbols, state):
 
     for symbol in symbols:
         print(f"Обрабатывается {symbol} ...")
+        price = get_crypto_com_price(symbol)  # Получаем цену с Crypto.com
+        if price is None:
+            continue
+
+        # Получаем исторические данные для монеты с Bybit
         raw = fetch_ohlcv_safe(exchange, symbol, timeframe=TIMEFRAME, limit=max(SMA_LEN + 1, 60))
         if not raw or len(raw) < SMA_LEN:
             continue
@@ -120,7 +147,6 @@ def analyze_symbols(exchange, symbols, state):
             continue
         df["lower2"] = df["sma"] * (1 - LOWER_PCT)
 
-        price = float(df["close"].iloc[-1])
         lower2 = float(df["lower2"].iloc[-1])
         diff_percent = (price - lower2) / lower2 * 100.0
 
