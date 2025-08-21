@@ -11,11 +11,10 @@ from collections import defaultdict
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")      # токен Telegram-бота
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # chat_id для уведомлений
 STATE_FILE = "alert_state.json"                   # файл состояния уведомлений
-MARKET_CAP_USD_MIN = 100_000_000                  # порог капитализации ($100M)
 TIMEFRAME = "1d"                                  # дневные свечи
 SMA_LEN = 12
 LOWER_PCT = 0.2558                                # 25.58%
-NEAR_PCT = 3.0                                    # «почти достигли» — в пределах 3%
+NEAR_PCT = 5.0                                    # «почти достигли» — в пределах 5%
 PREFERRED_QUOTES = ["USD", "USDT"]                # сначала USD, иначе USDT
 # =======================================================
 
@@ -89,71 +88,6 @@ def pick_crypto_com_symbols(exchange):
                 selected[base] = quotes[q]["symbol"]
                 break
     return selected  # dict: base -> "BASE/QUOTE"
-
-# ---------- капитализации через CoinGecko ----------
-def fetch_market_caps_coingecko(min_cap=MARKET_CAP_USD_MIN, max_pages=20):
-    """
-    Возвращает dict symbol_upper -> (id, name, market_cap)
-    Берём топ по капитализации (до ~5000 монет, 250*20 страниц).
-    """
-    result = defaultdict(lambda: {"id": None, "name": None, "market_cap": 0})
-    session = requests.Session()
-
-    for page in range(1, max_pages + 1):
-        url = (
-            "https://api.coingecko.com/api/v3/coins/markets"
-            f"?vs_currency=usd&order=market_cap_desc&per_page=250&page={page}"
-            "&price_change_percentage=24h"
-        )
-        try:
-            resp = session.get(url, timeout=30)
-            resp.raise_for_status()
-            arr = resp.json()
-        except Exception as e:
-            print(f"CoinGecko страница {page}: ошибка запроса: {e}")
-            break
-
-        if not arr:
-            break
-
-        for it in arr:
-            try:
-                mc = it.get("market_cap") or 0
-                if mc >= min_cap:
-                    sym = (it.get("symbol") or "").upper()
-                    # если символ повторяется (разные сети/версии), оставляем запись с бОльшим MC
-                    if mc > result[sym]["market_cap"]:
-                        result[sym] = {
-                            "id": it.get("id"),
-                            "name": it.get("name"),
-                            "market_cap": mc,
-                        }
-            except Exception:
-                continue
-
-        # если на странице в конце капитализации пошли < min_cap — дальнейшие страницы можно не брать
-        if all((x.get("market_cap") or 0) < min_cap for x in arr[-10:]):
-            break
-
-        time.sleep(1.2)  # бережём лимиты CoinGecko
-
-    return dict(result)
-
-def filter_symbols_by_market_cap(crypto_com_map, mc_map):
-    """
-    На вход:
-      crypto_com_map: dict base -> "BASE/QUOTE"
-      mc_map: dict SYMBOL -> {...}
-    На выход:
-      список торговых символов (например, ["BTC/USD", "ETH/USDT", ...])
-    """
-    filtered = []
-    for base, symbol in crypto_com_map.items():
-        sym_upper = base.upper()
-        info = mc_map.get(sym_upper)
-        if info and (info.get("market_cap") or 0) >= MARKET_CAP_USD_MIN:
-            filtered.append(symbol)
-    return filtered
 
 # ---------- свечи и анализ ----------
 def fetch_ohlcv_safe(exchange, symbol, timeframe=TIMEFRAME, limit=100):
@@ -229,15 +163,12 @@ def main():
     base_to_symbol = pick_crypto_com_symbols(exchange)
     print(f"Найдено базовых активов (с USD/USDT): {len(base_to_symbol)}")
 
-    # 2) Тянем капитализации и фильтруем ≥ $100M
-    print("Загружаю капитализации с CoinGecko...")
-    mc_map = fetch_market_caps_coingecko(MARKET_CAP_USD_MIN, max_pages=20)  # до ~5000 монет
-    symbols = filter_symbols_by_market_cap(base_to_symbol, mc_map)
-    symbols = sorted(set(symbols))
-    print(f"К анализу отобрано {len(symbols)} инструментов (капитализация ≥ ${MARKET_CAP_USD_MIN:,}).")
+    # 2) Так как убираем фильтрацию по капитализации, сразу получаем все монеты
+    symbols = sorted(set(base_to_symbol.values()))
+    print(f"К анализу отобрано {len(symbols)} инструментов.")
 
     if not symbols:
-        send_message("⚠️ На Crypto.com не найдено монет с капитализацией ≥ $100M (или не удалось получить данные CoinGecko).")
+        send_message("⚠️ На Crypto.com не найдено спотовых монет для анализа.")
         return
 
     # 3) Аналитика и уведомления
