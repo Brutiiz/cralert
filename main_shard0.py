@@ -91,7 +91,7 @@ def pick_crypto_com_symbols(exchange):
     return selected  # dict: base -> "BASE/QUOTE"
 
 # ---------- капитализации через CoinGecko ----------
-def fetch_market_caps_coingecko(min_cap=MARKET_CAP_USD_MIN, max_pages=5):
+def fetch_market_caps_coingecko(min_cap=MARKET_CAP_USD_MIN, max_pages=10):
     """
     Возвращает dict symbol_upper -> (id, name, market_cap)
     Берём топ по капитализации (до ~1250 монет, 250*5 страниц).
@@ -231,7 +231,7 @@ def main():
 
     # 2) Тянем капитализации и фильтруем ≥ $100M
     print("Загружаю капитализации с CoinGecko...")
-    mc_map = fetch_market_caps_coingecko(MARKET_CAP_USD_MIN, max_pages=6)  # до ~1500 монет
+    mc_map = fetch_market_caps_coingecko(MARKET_CAP_USD_MIN, max_pages=10)  # до ~1500 монет
     symbols = filter_symbols_by_market_cap(base_to_symbol, mc_map)
     symbols = sorted(set(symbols))
     print(f"К анализу отобрано {len(symbols)} инструментов (капитализация ≥ ${MARKET_CAP_USD_MIN:,}).")
