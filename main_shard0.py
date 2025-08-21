@@ -121,7 +121,7 @@ def analyze_symbols(exchange, symbols, state):
         print(f"{symbol}: close={price:.8f} SMA{SMA_LEN}={df['sma'].iloc[-1]:.8f} Lower2={lower2:.8f} Δ={diff_percent:.4f}%")
 
         # Проверка, было ли уже уведомление для данной монеты сегодня
-        if state.get(symbol) == today:
+        if state.get(f"{symbol}_crossed", "") == today or state.get(f"{symbol}_near", "") == today:
             continue
 
         # Сигнал «пересекли линию»
