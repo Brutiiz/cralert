@@ -14,7 +14,7 @@ STATE_FILE = "alert_state.json"                   # файл состояния 
 TIMEFRAME = "1d"                                  # дневные свечи
 SMA_LEN = 12
 LOWER_PCT = 0.2558                                # 25.58%
-NEAR_PCT = 5.0                                    # «почти достигли» — в пределах 5%
+NEAR_PCT = 3.0                                    # «почти достигли» — в пределах 3%
 PREFERRED_QUOTES = ["USD", "USDT"]                # сначала USD, иначе USDT
 # =======================================================
 
@@ -53,8 +53,6 @@ def make_exchange():
     # CCXT id биржи Crypto.com — 'cryptocom'
     ex = ccxt.cryptocom({
         "enableRateLimit": True,
-        # при необходимости можно указать прокси:
-        # "aiohttp_trust_env": True
     })
     ex.load_markets()
     return ex
@@ -122,21 +120,25 @@ def analyze_symbols(exchange, symbols, state):
 
         print(f"{symbol}: close={price:.8f} SMA{SMA_LEN}={df['sma'].iloc[-1]:.8f} Lower2={lower2:.8f} Δ={diff_percent:.4f}%")
 
-        # анти-спам: если уже уведомляли сегодня о достижении уровня — пропускаем
+        # Проверка, было ли уже уведомление для данной монеты сегодня
         if state.get(symbol) == today:
             continue
 
-        # сигнал «пересекли линию»
-        if price <= lower2:
+        # Сигнал «пересекли линию»
+        if price <= lower2 and state.get(f"{symbol}_crossed", "") != today:
             matched.append(symbol)
             matched_count += 1
-            state[symbol] = today
-        # сигнал «приближение»
-        elif 0 < diff_percent <= NEAR_PCT:
+            state[symbol] = today  # сохраняем, что уведомление уже отправлено
+            state[f"{symbol}_crossed"] = today  # отмечаем, что монета пересекла уровень
+
+        # Сигнал «приближение»
+        elif 0 < diff_percent <= NEAR_PCT and state.get(f"{symbol}_near", "") != today:
             near.append(symbol)
             near_count += 1
+            state[symbol] = today  # сохраняем, что уведомление уже отправлено
+            state[f"{symbol}_near"] = today  # отмечаем, что монета близка к уровню
 
-        # пауза для бережного обращения к API биржи
+        # Пауза для бережного обращения к API биржи
         time.sleep(exchange.rateLimit / 1000.0 if getattr(exchange, "rateLimit", None) else 0.2)
 
     save_state(state)
@@ -163,7 +165,7 @@ def main():
     base_to_symbol = pick_crypto_com_symbols(exchange)
     print(f"Найдено базовых активов (с USD/USDT): {len(base_to_symbol)}")
 
-    # 2) Так как убираем фильтрацию по капитализации, сразу получаем все монеты
+    # 2) Получаем все монеты и начинаем анализ
     symbols = sorted(set(base_to_symbol.values()))
     print(f"К анализу отобрано {len(symbols)} инструментов.")
 
