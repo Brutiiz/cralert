@@ -18,6 +18,10 @@ NEAR_PCT = 5.0                                    # «почти достигл�
 PREFERRED_QUOTES = ["USD", "USDT"]                # сначала USD, иначе USDT
 # =======================================================
 
+# Получаем API ключи из переменных окружения
+API_KEY = os.getenv("BYBIT_API_KEY")
+API_SECRET = os.getenv("BYBIT_API_SECRET")
+
 # ---------- утилиты состояния ----------
 def load_state():
     try:
@@ -50,9 +54,11 @@ def send_message(text: str):
 
 # ---------- источники данных ----------
 def make_exchange():
-    # CCXT id биржи Bybit — 'bybit'
+    # Подключаемся к Bybit с использованием API ключей
     ex = ccxt.bybit({
-        "enableRateLimit": True,
+        'apiKey': API_KEY,    # Ваш API ключ
+        'secret': API_SECRET, # Ваш секретный ключ
+        'enableRateLimit': True,
     })
     ex.load_markets()
     return ex
@@ -161,7 +167,7 @@ def main():
     base_to_symbol = pick_bybit_symbols(exchange)
     print(f"Найдено базовых активов (с USD/USDT): {len(base_to_symbol)}")
 
-    # 2) Анализируем монеты на Bybit без фильтрации по капитализации
+    # 2) Анализируем монеты на Bybit
     symbols = sorted(set(base_to_symbol.values()))
     print(f"К анализу отобрано {len(symbols)} инструментов.")
 
