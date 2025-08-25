@@ -10,7 +10,6 @@ from collections import defaultdict
 # ====================== НАСТРОЙКИ ======================
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")      # токен Telegram-бота
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # chat_id для уведомлений
-STATE_FILE = "alert_state.json"                   # файл состояния уведомлений
 TIMEFRAME = "1d"                                  # дневные свечи
 SMA_LEN = 12
 LOWER_PCT = 0.2558                                # 25.58%
@@ -18,20 +17,67 @@ NEAR_PCT = 5.0                                    # «почти достигл�
 PREFERRED_QUOTES = ["USD", "USDT"]                # сначала USD, иначе USDT
 # =======================================================
 
+# Абсолютные пути к файлам состояния и lock — рядом со скриптом
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATE_FILE = os.path.join(BASE_DIR, "alert_state.json")
+LOCK_FILE = os.path.join(BASE_DIR, ".alert_state.lock")
+
+# ---------- утилиты лок-файла ----------
+def acquire_lock(timeout=10, interval=0.2):
+    start = time.time()
+    while True:
+        try:
+            fd = os.open(LOCK_FILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            return True
+        except FileExistsError:
+            if time.time() - start > timeout:
+                print("⚠️ Не удалось получить lock — продолжаю без блокировки.")
+                return False
+            time.sleep(interval)
+
+def release_lock():
+    try:
+        os.remove(LOCK_FILE)
+    except FileNotFoundError:
+        pass
+
 # ---------- утилиты состояния ----------
 def load_state():
+    if not os.path.exists(STATE_FILE):
+        return {}
     try:
+        if os.path.getsize(STATE_FILE) == 0:
+            print("⚠️ Файл состояния пуст — начинаю с пустого словаря.")
+            return {}
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception:
+    except json.JSONDecodeError as e:
+        print(f"⚠️ Некорректный JSON в файле состояния ({e}). Переименовываю и начинаю с пустого.")
+        ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        try:
+            os.replace(STATE_FILE, STATE_FILE + f".corrupt.{ts}")
+        except Exception:
+            pass
+        return {}
+    except Exception as e:
+        print(f"Ошибка при чтении состояния: {e}")
         return {}
 
 def save_state(state):
+    tmp_path = STATE_FILE + ".tmp"
     try:
-        with open(STATE_FILE, "w", encoding="utf-8") as f:
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(state, f, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, STATE_FILE)
     except Exception as e:
         print(f"Ошибка при сохранении состояния: {e}")
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
 
 # ---------- Telegram ----------
 def send_message(text: str):
@@ -73,15 +119,13 @@ def pick_crypto_com_symbols(exchange):
             base = m.get("base")
             quote = m.get("quote")
             if base and quote in PREFERRED_QUOTES:
-                # храним лучший маркет для каждой котировки
                 by_base[base][quote] = m
         except Exception:
             continue
 
     selected = {}
     for base, quotes in by_base.items():
-        # приоритет USD, затем USDT
-        for q in PREFERRED_QUOTES:
+        for q in PREFERRED_QUOTES:  # приоритет USD, затем USDT
             if q in quotes:
                 selected[base] = quotes[q]["symbol"]
                 break
@@ -120,7 +164,7 @@ def analyze_symbols(exchange, symbols, state):
 
         print(f"{symbol}: close={price:.8f} SMA{SMA_LEN}={df['sma'].iloc[-1]:.8f} Lower2={lower2:.8f} Δ={diff_percent:.4f}%")
 
-        # Проверка, было ли уже уведомление для данной монеты сегодня
+        # Если уже уведомляли сегодня — пропускаем
         if state.get(f"{symbol}_crossed", "") == today or state.get(f"{symbol}_near", "") == today:
             continue
 
@@ -128,19 +172,22 @@ def analyze_symbols(exchange, symbols, state):
         if price <= lower2 and state.get(f"{symbol}_crossed", "") != today:
             matched.append(symbol)
             matched_count += 1
-            state[symbol] = today  # сохраняем, что уведомление уже отправлено
-            state[f"{symbol}_crossed"] = today  # отмечаем, что монета пересекла уровень
+            state[symbol] = today
+            state[f"{symbol}_crossed"] = today
+            save_state(state)  # сохраняем сразу, чтобы не потерять отметку
 
         # Сигнал «приближение»
         elif 0 < diff_percent <= NEAR_PCT and state.get(f"{symbol}_near", "") != today:
             near.append(symbol)
             near_count += 1
-            state[symbol] = today  # сохраняем, что уведомление уже отправлено
-            state[f"{symbol}_near"] = today  # отмечаем, что монета близка к уровню
+            state[symbol] = today
+            state[f"{symbol}_near"] = today
+            save_state(state)
 
         # Пауза для бережного обращения к API биржи
         time.sleep(exchange.rateLimit / 1000.0 if getattr(exchange, "rateLimit", None) else 0.2)
 
+    # финальная запись (на всякий случай)
     save_state(state)
 
     # Уведомления
@@ -148,7 +195,7 @@ def analyze_symbols(exchange, symbols, state):
         msg = "📉 Монеты на Crypto.com, пересёкшие Lower2:\n" + "\n".join(matched)
         send_message(msg)
     if near:
-        msg = "📡 Монеты на Crypto.com, близко к Lower2 (≤3%):\n" + "\n".join(near)
+        msg = f"📡 Монеты на Crypto.com, близко к Lower2 (≤{NEAR_PCT:.0f}%):\n" + "\n".join(near)
         send_message(msg)
 
     summary = f"Итог:\n{matched_count} монет пересекли Lower2.\n{near_count} монет близко к Lower2."
@@ -158,23 +205,31 @@ def analyze_symbols(exchange, symbols, state):
 
 # ---------- main ----------
 def main():
-    state = load_state()
+    print("STATE_FILE:", STATE_FILE)
+    print("CWD:", os.getcwd())
 
-    # 1) Подключаемся к бирже и собираем список доступных спотовых пар
-    exchange = make_exchange()
-    base_to_symbol = pick_crypto_com_symbols(exchange)
-    print(f"Найдено базовых активов (с USD/USDT): {len(base_to_symbol)}")
+    got_lock = acquire_lock()
+    try:
+        state = load_state()
 
-    # 2) Получаем все монеты и начинаем анализ
-    symbols = sorted(set(base_to_symbol.values()))
-    print(f"К анализу отобрано {len(symbols)} инструментов.")
+        # 1) Подключаемся к бирже и собираем список доступных спотовых пар
+        exchange = make_exchange()
+        base_to_symbol = pick_crypto_com_symbols(exchange)
+        print(f"Найдено базовых активов (с USD/USDT): {len(base_to_symbol)}")
 
-    if not symbols:
-        send_message("⚠️ На Crypto.com не найдено спотовых монет для анализа.")
-        return
+        # 2) Получаем все монеты и начинаем анализ
+        symbols = sorted(set(base_to_symbol.values()))
+        print(f"К анализу отобрано {len(symbols)} инструментов.")
 
-    # 3) Аналитика и уведомления
-    analyze_symbols(exchange, symbols, state)
+        if not symbols:
+            send_message("⚠️ На Crypto.com не найдено спотовых монет для анализа.")
+            return
+
+        # 3) Аналитика и уведомления
+        analyze_symbols(exchange, symbols, state)
+    finally:
+        if got_lock:
+            release_lock()
 
 if __name__ == "__main__":
     main()
