@@ -2,30 +2,48 @@ name: Run Shard0 Analysis
 
 on:
   schedule:
-   - cron: '*/30 * * * *'  # Запуск каждые пол часа (настраиваем по необходимости)
-  workflow_dispatch:  # Вручную запустить, если нужно
+    - cron: '*/30 * * * *'  # каждые 30 минут
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # нужно для записи состояния через Contents API
+
+concurrency:
+  group: shard0-alerts
+  cancel-in-progress: false
 
 jobs:
   shard0:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'   # можно оставить 3.8, если нужно
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            pip install ccxt pandas requests
+          fi
 
-    - name: Run Shard0 analysis
-      run: python main_shard0.py  # Ваш скрипт
-      env:
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}  # Получаем ID чата
-        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}  # Получаем токен из секретов
-        CRYPTOCOMPARE_API_KEY: ${{ secrets.CRYPTOCOMPARE_API_KEY }}  # Получаем API ключ
+      - name: Run Shard0 analysis
+        env:
+          # Телеграм
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+
+          # GitHub state storage (используем встроенный токен)
+          GH_STATE_TOKEN: ${{ github.token }}           # скрипт возьмёт либо GH_STATE_TOKEN, либо GITHUB_TOKEN
+          STATE_REPO: ${{ github.repository }}          # owner/repo
+          STATE_PATH: state/shard0_alert_state.json     # где хранить состояние в репозитории
+          STATE_BRANCH: main                            # ветка, куда писать состояние (подставь свою при необходимости)
+        run: |
+          python main_shard0.py
