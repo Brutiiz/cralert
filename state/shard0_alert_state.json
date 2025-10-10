@@ -763,5 +763,7 @@
 "ZORA/USD": "2025-10-01",
 "ZORA/USD_near": "2025-10-01",
 "ZRC/USD": "2025-10-10",
-"ZRC/USD_near": "2025-10-10"
+"ZRC/USD_near": "2025-10-10",
+"ZRO/USD": "2025-10-10",
+"ZRO/USD_crossed": "2025-10-10"
 }
