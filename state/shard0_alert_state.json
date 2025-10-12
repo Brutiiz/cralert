@@ -626,6 +626,8 @@
 "ORAI/USD_near": "2025-10-10",
 "ORCA/USD": "2025-10-10",
 "ORCA/USD_crossed": "2025-10-10",
+"ORDER/USD": "2025-10-12",
+"ORDER/USD_crossed": "2025-10-12",
 "ORDI/USD": "2025-10-11",
 "ORDI/USD_crossed": "2025-10-11",
 "ORDI/USD_near": "2025-10-10",
