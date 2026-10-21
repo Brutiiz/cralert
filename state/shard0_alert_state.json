@@ -311,6 +311,8 @@
 "DATA/USD": "2026-02-19",
 "DATA/USD_crossed": "2026-02-19",
 "DATA/USD_near": "2026-02-05",
+"DATAIP/USD": "2026-10-21",
+"DATAIP/USD_near": "2026-10-21",
 "DEEP/USD": "2026-06-10",
 "DEEP/USD_crossed": "2026-06-07",
 "DEEP/USD_near": "2026-06-10",
